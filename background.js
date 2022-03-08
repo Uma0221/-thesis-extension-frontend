@@ -2,7 +2,7 @@ var reviewURL = "";
 var currentURL = "";
 
 // 網頁url變化
-chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
+chrome.tabs.onUpdated.addListener(function (changeInfo) {
   if (
     changeInfo.url &&
     changeInfo.url.startsWith("https://www.google.com/maps/")

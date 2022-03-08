@@ -4,7 +4,7 @@ var reviewsURL = "";
 var apiReturnCount = 0;
 var lastVisibleReviewIndex = 0;
 
-chrome.runtime.onMessage.addListener(function (request, sender) {
+chrome.runtime.onMessage.addListener(function (request, sender, response) {
   // console.log(
   //   sender.tab
   //     ? "from a content script:" + sender.tab.url
@@ -47,6 +47,8 @@ chrome.runtime.onMessage.addListener(function (request, sender) {
     //   observer.disconnect();
     // }
   }
+
+  response({});
 });
 
 function loadReviews() {
@@ -186,7 +188,7 @@ function changeColor(targetDiv) {
           color = "#FAE9E9";
           break;
         case 4:
-          color = "#DEF0DA";
+          color = "#eeffed";
           break;
         case 5:
           color = "#B3DEA9";
