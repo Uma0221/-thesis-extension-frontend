@@ -18,7 +18,6 @@ chrome.runtime.onMessage.addListener(function (request, sender, response) {
       let reviewsBtn = document.getElementsByClassName("Yr7JMd-pane-hSRGPd");
 
       if (reviewsBtn[0] != undefined) {
-
         clearInterval(getClickBtn);
 
         var myStr = reviewsBtn[0].getAttribute("aria-label").slice(0, -4);
@@ -114,9 +113,9 @@ function ReviewsShow() {
             document.getElementsByClassName("section-scrollbox")[0].children
               .length - 2
           ];
-        changeColor(targetDiv);
 
         createReviewsObserver();
+        changeColor(targetDiv);
       }
     } else {
       console.log("目前沒有div");
@@ -171,32 +170,51 @@ function changeColor(targetDiv) {
     let currentReview = targetDiv.children[reviewIndex];
 
     if (currentReview.getAttribute("aria-label")) {
-      let reviewStar =
-        currentReview.children[0].children[2].children[2].children[0].children[1].getAttribute(
-          "aria-label"
-        );
+      let reviewDiv =
+        currentReview.children[0].children[2].children[3].children[0];
+
+      // console.log(reviewDiv);
+
+      let reviewStar = reviewDiv.children[1].getAttribute("aria-label");
 
       // console.log(reviewStar);
 
-      let color = "#ffffff";
+      let color = "#ffcc00";
+      let reliability = "中立";
 
       switch (Number(reviewStar[1])) {
         case 1:
-          color = "#E4AEAE";
+          color = "#ff3a30";
+          reliability = "非常不可靠";
           break;
         case 2:
-          color = "#FAE9E9";
+          color = "#ff9500";
+          reliability = "不可靠";
           break;
         case 4:
-          color = "#eeffed";
+          color = "#00c7be";
+          reliability = "可靠";
           break;
         case 5:
-          color = "#B3DEA9";
+          color = "#34c759";
+          reliability = "非常可靠";
           break;
         default:
           break;
       }
-      currentReview.style.backgroundColor = color;
+
+      var innerDiv = document.createElement("div");
+      innerDiv.className = "add-div";
+      innerDiv.textContent = reliability;
+
+      innerDiv.style.fontSize = "12px";
+      innerDiv.style.color = "#ffffff";
+      innerDiv.style.backgroundColor = color;
+      innerDiv.style.margin = "1px 8px";
+      innerDiv.style.padding = "2px 8px";
+      innerDiv.style.borderRadius = "20px";
+
+      reviewDiv.appendChild(innerDiv);
     }
   }
   lastVisibleReviewIndex = targetDiv.children.length - 1;
