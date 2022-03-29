@@ -1,26 +1,31 @@
 var reviewURL = "";
-var currentURL = "";
+// var currentStore = "";
 
-// 網頁url變化
-chrome.tabs.onUpdated.addListener(function (changeInfo) {
-  if (
-    changeInfo.url &&
-    changeInfo.url.startsWith("https://www.google.com/maps/")
-  ) {
-    currentURL = changeInfo.url;
-    // console.log(changeInfo.url);
-
-    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, { currentURL: currentURL });
-    });
-  }
-});
+// // 網頁url變化
+// chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
+//   console.log(changeInfo);
+//   if (
+//     changeInfo.url &&
+//     changeInfo.url.startsWith("https://www.google.com/maps/place")
+//   ) {
+//     var backURL = changeInfo.url.slice(34);
+//     currentStore = backURL.slice(0, backURL.indexOf("/"));
+//     // console.log(changeInfo.url.slice(33))
+//   }
+// });
 
 // 監聽api
 chrome.webRequest.onBeforeRequest.addListener(
   function (details) {
     if (details.url.startsWith("https://www.google.com/maps/preview/review/")) {
       reviewURL = details.url;
+      // console.log("api: " + reviewURL);
+
+      // chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+      //   chrome.tabs.sendMessage(tabs[0].id, {
+      //     reviewURL: reviewURL,
+      //   });
+      // });
     }
   },
   {
@@ -44,11 +49,9 @@ chrome.runtime.onMessage.addListener(function (message, sender, response) {
   switch (message.type) {
     //回傳評論的URL
     case "getreviewURL":
-      // console.log(reviewURL);
-      response({ reviewURL: reviewURL, currentURL: currentURL });
+      response({ reviewURL: reviewURL });
 
       reviewURL = ""; // Success!
-      currentURL = "";
 
       // console.log(reviewURL);
 

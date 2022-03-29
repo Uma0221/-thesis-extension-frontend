@@ -1,9 +1,11 @@
 var reviewsCount = 0;
-var firstReviewURL = "";
-var reviewsURL = "";
+var newsReviewURL = "";
+var relatedReviewURL = "";
 var apiReturnCount = 0;
 var lastVisibleReviewIndex = 0;
+var step = 0;
 
+// 監聽popup
 chrome.runtime.onMessage.addListener(function (request, sender, response) {
   // console.log(
   //   sender.tab
@@ -11,73 +13,219 @@ chrome.runtime.onMessage.addListener(function (request, sender, response) {
   //     : "from the extension"
   // );
 
-  // console.log(request.greeting);
-
   if (request.greeting === "hello") {
+    // 初始化
+    reviewsCount = 0;
+    newsReviewURL = "";
+    relatedReviewURL = "";
+    apiReturnCount = 0;
+    lastVisibleReviewIndex = 0;
+    step = 0;
+
     var getClickBtn = setInterval(() => {
       let reviewsBtn = document.getElementsByClassName("Yr7JMd-pane-hSRGPd");
 
       if (reviewsBtn[0] != undefined) {
         clearInterval(getClickBtn);
 
-        var myStr = reviewsBtn[0].getAttribute("aria-label").slice(0, -4);
-        var newStr = myStr.replace(/,/g, "");
+        var countStr = reviewsBtn[0]
+          .getAttribute("aria-label")
+          .slice(0, -4)
+          .replace(/,/g, "");
 
-        console.log(newStr); // 評論數量
-        reviewsCount = Number(newStr);
+        console.log(countStr); // 評論數量
+        reviewsCount = Number(countStr);
         alert("reviewsCount: " + reviewsCount);
 
         if (reviewsCount > 3) {
           reviewsBtn[0].click();
-          loadReviews();
+          clickMenuBtn();
         }
       } else {
         console.log("等待按鈕生成");
       }
     }, 500);
-  } else if (request.currentURL) {
-    console.log("reviewsURL: " + reviewsURL);
-    console.log("currentURL: " + request.currentURL);
-    lastVisibleReviewIndex = 0;
-
-    // if (reviewsURL != "") {
-    //   console.log("換頁");
-    //   reviewsURL = "";
-    //   observer.disconnect();
-    // }
-  }
+  } 
+  // else if (request.reviewURL) {
+  //   // console.log("currentStore: " + request.currentStore);
+  //   // console.log(request.reviewURL);
+  // }
 
   response({});
 });
 
-function loadReviews() {
-  clearInterval(getFirstReviewURL);
+// 自動點擊排序按鈕
+function clickMenuBtn() {
+  clearInterval(getMenuBtn);
 
-  var getFirstReviewURL = setInterval(() => {
+  var getMenuBtn = setInterval(() => {
+    let mainDiv = document.querySelector('[role="main"]');
+    let menuBtn = document.querySelector('[aria-label="排序評論"]');
+
+    // console.log(mainDiv.getAttribute("aria-label"));
+
+    if (menuBtn && mainDiv.getAttribute("aria-label").includes("所有評論")) {
+      clearInterval(getMenuBtn);
+      menuBtn.click();
+
+      if (step == 0) {
+        clickNewsBtn();
+      } else if (step == 2) {
+        clickRelatedBtn();
+      }
+    } else {
+      // console.log("等待選單按鈕生成");
+    }
+  }, 500);
+}
+
+// 自動點擊最新按鈕
+function clickNewsBtn() {
+  let newsBtn = document.querySelector('[role="menu"]');
+
+  if (newsBtn && newsBtn.children[1]) {
+    // console.log(newsBtn.children[1]);
+    step = 1;
+
+    newsBtn.children[1].click();
+    saveNewsReviewURL();
+  } else {
+    // console.log("等待最新按鈕生成");
+    clickMenuBtn();
+  }
+}
+
+// 讀取最新的api
+function saveNewsReviewURL() {
+  clearInterval(getNewsReviewURL);
+
+  var getNewsReviewURL = setInterval(() => {
     chrome.runtime.sendMessage({ type: "getreviewURL" }, function (response) {
       if (response.reviewURL == "error") {
-        clearInterval(getFirstReviewURL);
+        clearInterval(getNewsReviewURL);
         console.log("回傳錯誤");
-        firstReviewURL = "";
+        newsReviewURL = "";
         window.location.reload();
 
-        loadReviews();
+        saveNewsReviewURL();
       } else if (response.reviewURL != "") {
-        firstReviewURL = response.reviewURL;
-        reviewsURL = response.currentURL;
-        clearInterval(getFirstReviewURL);
-        console.log(firstReviewURL);
-        console.log(reviewsURL);
+        newsReviewURL = response.reviewURL;
+        clearInterval(getNewsReviewURL);
+        step = 2;
 
-        ReviewsShow();
+        console.log("newsReviewURL: " + newsReviewURL);
+
         getALLReviews();
+        clickMenuBtn();
       }
     });
   }, 500);
 }
 
-// 頁面顯示
+// 取得最新的評論時間
+function getALLReviews() {
+  var time = [];
 
+  var decade = 0;
+  if (reviewsCount > 2000) {
+    console.log("太多評論了！");
+    decade = 200;
+  } else if (reviewsCount % 10 > 0) {
+    decade = parseInt(reviewsCount / 10) + 1;
+  } else {
+    decade = parseInt(reviewsCount / 10);
+  }
+
+  for (i = 0; i < decade; i++) {
+    let otherNewsReviewURL =
+      newsReviewURL.substring(0, newsReviewURL.indexOf("!2m2!") + 7) +
+      (i * 10).toString() +
+      newsReviewURL.substring(
+        newsReviewURL.indexOf("!2m2!") + 8,
+        newsReviewURL.length
+      );
+
+    // console.log(otherNewsReviewURL); // 後續載入的URL
+
+    fetch(otherNewsReviewURL)
+      .then(function (response) {
+        return response.text();
+      })
+      .then(function (requests_result) {
+        let pretext = ")]}'";
+        let text = requests_result.replace(pretext, "");
+        let soup = JSON.parse(text);
+
+        if (soup[2]) {
+          for (j = 0; j < soup[2].length; j++) {
+            time.push(soup[2][j][1]);
+          }
+        }
+
+        if (apiReturnCount == decade - 1) {
+          apiReturnCount = 0;
+
+          console.log(time);
+
+          newsReviewURL = "";
+        } else {
+          apiReturnCount++;
+        }
+      })
+      .catch((rejected) => {
+        console.log(rejected);
+
+        var time = [];
+        newsReviewURL = "";
+        saveNewsReviewURL();
+      });
+  }
+}
+
+// ---------------------------------------------------------------------------------畫面顯示
+
+// 自動點擊最相關按鈕
+function clickRelatedBtn() {
+  let relatedBtn = document.querySelector('[role="menu"]');
+
+  if (relatedBtn && relatedBtn.children[0]) {
+    // console.log(relatedBtn.children[0]);
+    relatedBtn.children[0].click();
+    saveRelatedReviewURL();  
+    step = 0;
+
+    ReviewsShow();
+  } else {
+    // console.log("等待最相關按鈕生成");
+    clickMenuBtn();
+  }
+}
+
+// 讀取最新的api
+function saveRelatedReviewURL() {
+  clearInterval(getRelatedReviewURL);
+
+  var getRelatedReviewURL = setInterval(() => {
+    chrome.runtime.sendMessage({ type: "getreviewURL" }, function (response) {
+      if (response.reviewURL == "error") {
+        clearInterval(getRelatedReviewURL);
+        console.log("回傳錯誤");
+        relatedReviewURL = "";
+        window.location.reload();
+
+        saveRelatedReviewURL();
+      } else if (response.reviewURL != "") {
+        relatedReviewURL = response.reviewURL;
+        clearInterval(getRelatedReviewURL);
+        step = 2;
+
+        console.log("relatedReviewURL: " + relatedReviewURL);
+      }
+    });
+  }, 500);
+}
+
+// 等待評論顯示
 function ReviewsShow() {
   clearInterval(waitReviewsShow);
 
@@ -114,8 +262,8 @@ function ReviewsShow() {
               .length - 2
           ];
 
+        showReliability(targetDiv);
         createReviewsObserver();
-        changeColor(targetDiv);
       }
     } else {
       console.log("目前沒有div");
@@ -124,13 +272,6 @@ function ReviewsShow() {
 }
 
 function createReviewsObserver() {
-  // try{
-  //   observer.disconnect();
-  //   console.log("have observer");
-  // }catch(e){
-  //   console.log(e);
-  //   console.log("don't have observer");
-  // }
 
   let reviewsDiv = document.getElementsByClassName("section-scrollbox");
 
@@ -146,7 +287,7 @@ function createReviewsObserver() {
         mutation.type === "childList" &&
         mutation.target.children.length - 1 != lastVisibleReviewIndex
       ) {
-        changeColor(mutation.target);
+        showReliability(mutation.target);
       }
     }
   };
@@ -161,7 +302,7 @@ function createReviewsObserver() {
   // observer.disconnect();
 }
 
-function changeColor(targetDiv) {
+function showReliability(targetDiv) {
   for (
     reviewIndex = lastVisibleReviewIndex;
     reviewIndex < targetDiv.children.length - 1;
@@ -219,68 +360,6 @@ function changeColor(targetDiv) {
   }
   lastVisibleReviewIndex = targetDiv.children.length - 1;
   console.log("目前div數量: " + lastVisibleReviewIndex);
-}
-
-// 背景取得
-
-function getALLReviews() {
-  var arr = [];
-  var star = [];
-
-  var decade = 0;
-  if (reviewsCount % 10 > 0) {
-    decade = parseInt(reviewsCount / 10) + 1;
-  } else {
-    decade = parseInt(reviewsCount / 10);
-  }
-
-  for (i = 0; i < decade; i++) {
-    let reviewURL =
-      firstReviewURL.substring(0, firstReviewURL.indexOf("!2m2!") + 7) +
-      (i * 10).toString() +
-      firstReviewURL.substring(
-        firstReviewURL.indexOf("!2m2!") + 8,
-        firstReviewURL.length
-      );
-
-    // console.log(reviewURL); // 後續載入的URL
-
-    fetch(reviewURL)
-      .then(function (response) {
-        return response.text();
-      })
-      .then(function (requests_result) {
-        let pretext = ")]}'";
-        let text = requests_result.replace(pretext, "");
-        let soup = JSON.parse(text);
-
-        if (soup[2]) {
-          for (j = 0; j < soup[2].length; j++) {
-            arr.push(soup[2][j][3]);
-            star.push(soup[2][j][1]);
-          }
-        }
-
-        if (apiReturnCount == decade - 1) {
-          apiReturnCount = 0;
-
-          console.log(arr);
-          console.log(star);
-
-          firstReviewURL = "";
-        } else {
-          apiReturnCount++;
-        }
-      })
-      .catch((rejected) => {
-        console.log(rejected);
-
-        var arr = [];
-        var star = [];
-        firstReviewURL = "";
-        loadReviews();
-      });
-  }
 }
 
 // function delay(n){
