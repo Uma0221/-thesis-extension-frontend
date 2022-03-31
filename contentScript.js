@@ -66,6 +66,47 @@ function saveFirstReviewURL() {
   }, 500);
 }
 
+function arrayTocsv(csvData) {
+  // var _headers = [
+  //   "content_length",
+  //   "photos_count",
+  //   "content",
+  //   "star_gap",
+  //   "date",
+  //   "like_count",
+  //   "reply",
+  //   "reviewer_rank",
+  // ];
+
+  var lineArray = [];
+  csvData.forEach(function (infoArray, index) {
+    var line = infoArray.join(",");
+    lineArray.push(index == 0 ? "\uFEFF" + line : line); // 為了讓Excel開啟csv，需加上BOM：\uFEFF
+  });
+  var csvContent = lineArray.join("\n");
+
+  // console.log(csvContent);
+
+  // download stuff
+  var blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  var link = document.createElement("a");
+
+  if (link.download !== undefined) {
+    // feature detection
+    // Browsers that support HTML5 download attribute
+    link.setAttribute("href", window.URL.createObjectURL(blob));
+    link.setAttribute("download", "data.csv");
+    link.setAttribute("hidden", true);
+  } else {
+    // it needs to implement server side export
+    console.log("error");
+    link.setAttribute("href", "#");
+  }
+  //link.innerHTML = "Export to CSV";
+  //document.body.appendChild(link);
+  link.click();
+}
+
 // 取得最新的評論時間
 function getALLReviews() {
   var arr = [];
@@ -132,7 +173,7 @@ function getALLReviews() {
               arr.push([
                 content_length,
                 photos_count,
-                content,
+                `"${content}"`,
                 star_gap,
                 date,
                 like_count,
@@ -149,6 +190,7 @@ function getALLReviews() {
           apiReturnCount = 0;
 
           console.log(arr);
+          arrayTocsv(arr);
 
           firstReviewURL = "";
         } else {
