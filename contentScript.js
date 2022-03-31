@@ -21,6 +21,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, response) {
     apiReturnCount = 0;
     lastVisibleReviewIndex = 0;
     step = 0;
+    clearInterval(getClickBtn);
 
     var getClickBtn = setInterval(() => {
       let reviewsBtn = document.getElementsByClassName("Yr7JMd-pane-hSRGPd");
@@ -34,7 +35,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, response) {
           .replace(/,/g, "");
 
         console.log(countStr); // 評論數量
-        reviewsCount = Number(countStr);
+        reviewsCount = parseInt(countStr);
         alert("reviewsCount: " + reviewsCount);
 
         if (reviewsCount > 3) {
@@ -45,7 +46,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, response) {
         console.log("等待按鈕生成");
       }
     }, 500);
-  } 
+  }
   // else if (request.reviewURL) {
   //   // console.log("currentStore: " + request.currentStore);
   //   // console.log(request.reviewURL);
@@ -191,7 +192,7 @@ function clickRelatedBtn() {
   if (relatedBtn && relatedBtn.children[0]) {
     // console.log(relatedBtn.children[0]);
     relatedBtn.children[0].click();
-    saveRelatedReviewURL();  
+    saveRelatedReviewURL();
     step = 0;
 
     ReviewsShow();
@@ -264,6 +265,33 @@ function ReviewsShow() {
 
         showReliability(targetDiv);
         createReviewsObserver();
+
+        // // 測試
+        // var url =
+        //   "https://thesis-sentiment-analysis.cognitiveservices.azure.com//text/analytics/v3.0/sentiment";
+        // var data = {
+        //   documents: [
+        //     {
+        //       language: "zh-hant",
+        //       id: "1",
+        //       text: "和朋友導航來到了敲我，我們點了\n\n📍籽籽百香果塔\n草莓點綴於像是雲朵般的百香果鮮奶油上方，內餡百香果原汁原味的籽保留，口感更添滋味溫和順口，塔殼部份酥脆有香氣，讓我吃了不停默默點頭。\n\n📍雙重人格檸檬塔\n檸檬皮刨成絲於最頂端接著檸檬鮮奶油，內餡滿滿檸檬酸酸但爽口香氣四溢，搭配塔殼一起吃層次更是豐富！\n\n📍香橙拿鐵（含酒精 君度橙酒）\n一入口淡淡橙香的味道用咖啡巧妙結合，當然意外順口，咖啡介於不酸不苦之間，這我給過！ 對了～點咖啡或茶品會有小餅乾。\n\n時間的關係沒辦法好好聊天，有機會在一起喝咖啡，然後這間甜點沒有讓人失望，反而感受很用心，但是店家人手不足，來到這兒的各位需要耐心等待。",
+        //     },
+        //   ],
+        // };
+
+        // fetch(url, {
+        //   method: "POST", // or 'PUT'
+        //   body: JSON.stringify(data), // data can be `string` or {object}!
+        //   headers: new Headers({
+        //     "Content-Type": "application/json",
+        //     "Ocp-apim-subscription-key": "50d636d9e4844528bd878b47e8c694bd",
+        //   }),
+        // })
+        //   .then((res) => res.json())
+        //   .catch((error) => console.error("Error:", error))
+        //   .then((response) => console.log("Success:", response));
+
+        // // 測試
       }
     } else {
       console.log("目前沒有div");
@@ -272,7 +300,6 @@ function ReviewsShow() {
 }
 
 function createReviewsObserver() {
-
   let reviewsDiv = document.getElementsByClassName("section-scrollbox");
 
   const targetNode = reviewsDiv[0].children[reviewsDiv[0].children.length - 2];
