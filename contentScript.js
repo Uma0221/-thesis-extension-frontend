@@ -1,7 +1,7 @@
 var reviewsCount = 0;
 var firstReviewURL = "";
 var apiReturnCount = 0;
-var starMean = 4.3;
+var starMean = 0;
 
 // 監聽popup
 chrome.runtime.onMessage.addListener(function (request, sender, response) {
@@ -10,12 +10,14 @@ chrome.runtime.onMessage.addListener(function (request, sender, response) {
     reviewsCount = 0;
     firstReviewURL = "";
     apiReturnCount = 0;
+    starMean = 0;
     clearInterval(getClickBtn);
 
     var getClickBtn = setInterval(() => {
       let reviewsBtn = document.getElementsByClassName("Yr7JMd-pane-hSRGPd");
+      let starMeanDiv = document.getElementsByClassName("aMPvhf-fI6EEc-KVuj8d");
 
-      if (reviewsBtn[0] != undefined) {
+      if (reviewsBtn[0] != undefined && starMeanDiv[0] != undefined) {
         clearInterval(getClickBtn);
 
         var countStr = reviewsBtn[0]
@@ -23,9 +25,10 @@ chrome.runtime.onMessage.addListener(function (request, sender, response) {
           .slice(0, -4)
           .replace(/,/g, "");
 
-        console.log(countStr); // 評論數量
         reviewsCount = parseInt(countStr);
-        alert("reviewsCount: " + reviewsCount);
+        starMean = parseFloat(starMeanDiv[0].innerHTML);
+
+        alert("reviewsCount: " + reviewsCount + ", starMean: " + starMean);
 
         if (reviewsCount > 3) {
           reviewsBtn[0].click();
@@ -56,8 +59,8 @@ function saveFirstReviewURL() {
       } else if (response.reviewURL != "") {
         firstReviewURL = response.reviewURL;
         clearInterval(getFirstReviewURL);
-        console.log(firstReviewURL);
 
+        console.log(firstReviewURL);
         console.log(reviewsCount);
 
         getALLReviews();
@@ -110,8 +113,9 @@ function arrayTocsv(csvData) {
 // 取得最新的評論時間
 function getALLReviews() {
   var arr = [];
-
   var decade = 0;
+  // console.log("starMean: " + starMean); // 平均分數
+
   if (reviewsCount > 2000) {
     console.log("太多評論了！");
     decade = 200;
@@ -157,8 +161,20 @@ function getALLReviews() {
               // let reviewer_count = soup[2][j][12][1][1]
 
               if (soup[2][j][3]) {
-                content_length = soup[2][j][3].length;
-                content = soup[2][j][3];
+                if (
+                  soup[2][j][3].indexOf("(由 Google 提供翻譯)") == 0 &&
+                  soup[2][j][3].indexOf("(原始評論)") > 0
+                ) {
+                  content_length = soup[2][j][3].length;
+                  content = soup[2][j][3].substring(
+                    16,
+                    soup[2][j][3].indexOf("(原始評論)") - 2
+                  );
+                } else {
+                  content = soup[2][j][3];
+                }
+
+                content_length = content.length;
               }
               if (Array.isArray(soup[2][j][14])) {
                 photos_count = soup[2][j][14].length;
