@@ -266,7 +266,7 @@ function ReviewsShow() {
         showReliability(targetDiv);
         createReviewsObserver();
 
-        // // 測試
+        // // 情緒測試
         // var url =
         //   "https://thesis-sentiment-analysis.cognitiveservices.azure.com//text/analytics/v3.0/sentiment";
         // var data = {
@@ -291,7 +291,31 @@ function ReviewsShow() {
         //   .catch((error) => console.error("Error:", error))
         //   .then((response) => console.log("Success:", response));
 
-        // // 測試
+        // // 情緒測試
+
+        // model測試
+        var url = "https://thesis-model-backend.herokuapp.com/predict";
+        var data = {
+          content_length: 30,
+          photos_count: 0,
+          star_gap: 0.6,
+          like_count: 0,
+          reply: false,
+          reviewer_rank: 0,
+        };
+
+        fetch(url, {
+          method: "POST", // or 'PUT'
+          body: JSON.stringify(data), // data can be `string` or {object}!
+          headers: new Headers({
+            "Content-Type": "application/json",
+          }),
+        })
+          .then((res) => res.json())
+          .catch((error) => console.error("Error:", error))
+          .then((response) => console.log("Success:", response));
+
+        // model測試
       }
     } else {
       console.log("目前沒有div");
