@@ -19,7 +19,7 @@ chrome.webRequest.onBeforeRequest.addListener(
   function (details) {
     if (details.url.startsWith("https://www.google.com/maps/preview/review/")) {
       reviewsAPI = details.url;
-      // console.log("reviewsAPI: " + reviewsAPI);
+      console.log("reviewsAPI: " + reviewsAPI);
 
       // chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
       //   chrome.tabs.sendMessage(tabs[0].id, {
@@ -36,7 +36,7 @@ chrome.webRequest.onBeforeRequest.addListener(
 // 監聽錯誤
 chrome.webRequest.onErrorOccurred.addListener(
   function (details) {
-    console.log(details.error);
+    // console.log(details.error);
     reviewsAPI = "error";
   },
   {
@@ -47,14 +47,13 @@ chrome.webRequest.onErrorOccurred.addListener(
 // 回傳狀態
 chrome.runtime.onMessage.addListener(function (message, sender, response) {
   switch (message.type) {
-    
     //回傳評論的API
     case "getReviewsAPI":
+      console.log(reviewsAPI);
       response({ reviewsAPI: reviewsAPI });
 
       reviewsAPI = ""; // Success!
-
-      // console.log(reviewsAPI);
+      console.log(reviewsAPI);
 
       // if(reviewsAPI != ""){
       //     reviewsAPI = "";
