@@ -1,5 +1,5 @@
-var reviewURL = "";
-// var currentStore = "";
+var reviewsAPI = "";
+// var currentURL = "";
 
 // // 網頁url變化
 // chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
@@ -9,21 +9,21 @@ var reviewURL = "";
 //     changeInfo.url.startsWith("https://www.google.com/maps/place")
 //   ) {
 //     var backURL = changeInfo.url.slice(34);
-//     currentStore = backURL.slice(0, backURL.indexOf("/"));
+//     currentURL = backURL.slice(0, backURL.indexOf("/"));
 //     // console.log(changeInfo.url.slice(33))
 //   }
 // });
 
-// 監聽api
+// 監聽API
 chrome.webRequest.onBeforeRequest.addListener(
   function (details) {
     if (details.url.startsWith("https://www.google.com/maps/preview/review/")) {
-      reviewURL = details.url;
-      // console.log("api: " + reviewURL);
+      reviewsAPI = details.url;
+      // console.log("reviewsAPI: " + reviewsAPI);
 
       // chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
       //   chrome.tabs.sendMessage(tabs[0].id, {
-      //     reviewURL: reviewURL,
+      //     reviewsAPI: reviewsAPI,
       //   });
       // });
     }
@@ -37,7 +37,7 @@ chrome.webRequest.onBeforeRequest.addListener(
 chrome.webRequest.onErrorOccurred.addListener(
   function (details) {
     console.log(details.error);
-    reviewURL = "error";
+    reviewsAPI = "error";
   },
   {
     urls: ["https://www.google.com/maps/*"],
@@ -47,16 +47,17 @@ chrome.webRequest.onErrorOccurred.addListener(
 // 回傳狀態
 chrome.runtime.onMessage.addListener(function (message, sender, response) {
   switch (message.type) {
-    //回傳評論的URL
-    case "getreviewURL":
-      response({ reviewURL: reviewURL });
+    
+    //回傳評論的API
+    case "getReviewsAPI":
+      response({ reviewsAPI: reviewsAPI });
 
-      reviewURL = ""; // Success!
+      reviewsAPI = ""; // Success!
 
-      // console.log(reviewURL);
+      // console.log(reviewsAPI);
 
-      // if(reviewURL != ""){
-      //     reviewURL = "";
+      // if(reviewsAPI != ""){
+      //     reviewsAPI = "";
       // }
 
       break;

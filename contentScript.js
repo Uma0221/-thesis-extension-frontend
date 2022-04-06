@@ -1,9 +1,11 @@
-var reviewsCount = 0;
-var newsReviewURL = "";
-var relatedReviewURL = "";
-var apiReturnCount = 0;
-var lastVisibleReviewIndex = 0;
+var allReviewsCount = 0;
+var newsReviewsAPI = "";
+var templateReviewsAPI = "";
+// var checkReviewsAPI = "";
+var APIReturnCount = 0;
+var currentReviewsCount = 0;
 var step = 0;
+var reviewsArr = [];
 
 // 監聽popup
 chrome.runtime.onMessage.addListener(function (request, sender, response) {
@@ -15,31 +17,34 @@ chrome.runtime.onMessage.addListener(function (request, sender, response) {
 
   if (request.greeting === "hello") {
     // 初始化
-    reviewsCount = 0;
-    newsReviewURL = "";
-    relatedReviewURL = "";
-    apiReturnCount = 0;
-    lastVisibleReviewIndex = 0;
+    allReviewsCount = 0;
+    newsReviewsAPI = "";
+    templateReviewsAPI = "";
+    // checkReviewsAPI = "";
+    APIReturnCount = 0;
+    currentReviewsCount = 0;
     step = 0;
+    reviewsArr = [];
     clearInterval(getClickBtn);
 
     var getClickBtn = setInterval(() => {
-      let reviewsBtn = document.getElementsByClassName("Yr7JMd-pane-hSRGPd");
+      let seeAllReviewsBtn =
+        document.getElementsByClassName("Yr7JMd-pane-hSRGPd");
 
-      if (reviewsBtn[0] != undefined) {
+      if (seeAllReviewsBtn[0] != undefined) {
         clearInterval(getClickBtn);
 
-        var countStr = reviewsBtn[0]
+        var allReviewsCountStr = seeAllReviewsBtn[0]
           .getAttribute("aria-label")
           .slice(0, -4)
           .replace(/,/g, "");
 
-        console.log(countStr); // 評論數量
-        reviewsCount = parseInt(countStr);
-        alert("reviewsCount: " + reviewsCount);
+        console.log(allReviewsCountStr); // 評論數量
+        allReviewsCount = parseInt(allReviewsCountStr);
+        alert("allReviewsCount: " + allReviewsCount);
 
-        if (reviewsCount > 3) {
-          reviewsBtn[0].click();
+        if (allReviewsCount > 3) {
+          seeAllReviewsBtn[0].click();
           clickMenuBtn();
         }
       } else {
@@ -47,9 +52,10 @@ chrome.runtime.onMessage.addListener(function (request, sender, response) {
       }
     }, 500);
   }
-  // else if (request.reviewURL) {
-  //   // console.log("currentStore: " + request.currentStore);
-  //   // console.log(request.reviewURL);
+  // else if (request.reviewsAPI) {
+  //   // console.log("currentURL: " + request.currentURL);
+  //   // console.log("checkReviewsAPI: " + request.reviewsAPI);
+  //   checkReviewsAPI = request.reviewsAPI;
   // }
 
   response({});
@@ -86,37 +92,37 @@ function clickNewsBtn() {
 
   if (newsBtn && newsBtn.children[1]) {
     // console.log(newsBtn.children[1]);
-    step = 1;
-
     newsBtn.children[1].click();
-    saveNewsReviewURL();
+
+    step = 1;
+    saveNewsReviewsAPI();
   } else {
     // console.log("等待最新按鈕生成");
     clickMenuBtn();
   }
 }
 
-// 讀取最新的api
-function saveNewsReviewURL() {
-  clearInterval(getNewsReviewURL);
+// 讀取最新的API
+function saveNewsReviewsAPI() {
+  clearInterval(getNewsReviewsAPI);
 
-  var getNewsReviewURL = setInterval(() => {
-    chrome.runtime.sendMessage({ type: "getreviewURL" }, function (response) {
-      if (response.reviewURL == "error") {
-        clearInterval(getNewsReviewURL);
+  var getNewsReviewsAPI = setInterval(() => {
+    chrome.runtime.sendMessage({ type: "getReviewsAPI" }, function (response) {
+      if (response.reviewsAPI == "error") {
+        clearInterval(getNewsReviewsAPI);
         console.log("回傳錯誤");
-        newsReviewURL = "";
+        newsReviewsAPI = "";
         window.location.reload();
 
-        saveNewsReviewURL();
-      } else if (response.reviewURL != "") {
-        newsReviewURL = response.reviewURL;
-        clearInterval(getNewsReviewURL);
+        saveNewsReviewsAPI();
+      } else if (response.reviewsAPI != "") {
+        newsReviewsAPI = response.reviewsAPI;
+        clearInterval(getNewsReviewsAPI);
+
+        console.log("newsReviewsAPI: " + newsReviewsAPI);
+        getAllNewsReviews();
+
         step = 2;
-
-        console.log("newsReviewURL: " + newsReviewURL);
-
-        getALLReviews();
         clickMenuBtn();
       }
     });
@@ -124,31 +130,31 @@ function saveNewsReviewURL() {
 }
 
 // 取得最新的評論時間
-function getALLReviews() {
+function getAllNewsReviews() {
   var time = [];
 
-  var decade = 0;
-  if (reviewsCount > 2000) {
+  var reviewsDecimal = 0;
+  if (allReviewsCount > 2000) {
     console.log("太多評論了！");
-    decade = 200;
-  } else if (reviewsCount % 10 > 0) {
-    decade = parseInt(reviewsCount / 10) + 1;
+    reviewsDecimal = 200;
+  } else if (allReviewsCount % 10 > 0) {
+    reviewsDecimal = parseInt(allReviewsCount / 10) + 1;
   } else {
-    decade = parseInt(reviewsCount / 10);
+    reviewsDecimal = parseInt(allReviewsCount / 10);
   }
 
-  for (i = 0; i < decade; i++) {
-    let otherNewsReviewURL =
-      newsReviewURL.substring(0, newsReviewURL.indexOf("!2m2!") + 7) +
+  for (i = 0; i < reviewsDecimal; i++) {
+    let otherNewsReviewsAPI =
+      newsReviewsAPI.substring(0, newsReviewsAPI.indexOf("!2m2!") + 7) +
       (i * 10).toString() +
-      newsReviewURL.substring(
-        newsReviewURL.indexOf("!2m2!") + 8,
-        newsReviewURL.length
+      newsReviewsAPI.substring(
+        newsReviewsAPI.indexOf("!2m2!") + 8,
+        newsReviewsAPI.length
       );
 
-    // console.log(otherNewsReviewURL); // 後續載入的URL
+    // console.log(otherNewsReviewsAPI); // 後續載入的API
 
-    fetch(otherNewsReviewURL)
+    fetch(otherNewsReviewsAPI)
       .then(function (response) {
         return response.text();
       })
@@ -163,22 +169,22 @@ function getALLReviews() {
           }
         }
 
-        if (apiReturnCount == decade - 1) {
-          apiReturnCount = 0;
+        if (APIReturnCount == reviewsDecimal - 1) {
+          APIReturnCount = 0;
 
           console.log(time);
 
-          newsReviewURL = "";
+          newsReviewsAPI = "";
         } else {
-          apiReturnCount++;
+          APIReturnCount++;
         }
       })
       .catch((rejected) => {
         console.log(rejected);
 
-        var time = [];
-        newsReviewURL = "";
-        saveNewsReviewURL();
+        time = [];
+        newsReviewsAPI = "";
+        saveNewsReviewsAPI();
       });
   }
 }
@@ -192,78 +198,78 @@ function clickRelatedBtn() {
   if (relatedBtn && relatedBtn.children[0]) {
     // console.log(relatedBtn.children[0]);
     relatedBtn.children[0].click();
-    saveRelatedReviewURL();
-    step = 0;
 
-    ReviewsShow();
+    step = 0;
+    saveTemplateReviewsAPI();
   } else {
     // console.log("等待最相關按鈕生成");
     clickMenuBtn();
   }
 }
 
-// 讀取最新的api
-function saveRelatedReviewURL() {
-  clearInterval(getRelatedReviewURL);
+// 讀取範本的API
+function saveTemplateReviewsAPI() {
+  clearInterval(getTemplateReviewsAPI);
 
-  var getRelatedReviewURL = setInterval(() => {
-    chrome.runtime.sendMessage({ type: "getreviewURL" }, function (response) {
-      if (response.reviewURL == "error") {
-        clearInterval(getRelatedReviewURL);
+  var getTemplateReviewsAPI = setInterval(() => {
+    chrome.runtime.sendMessage({ type: "getReviewsAPI" }, function (response) {
+      if (response.reviewsAPI == "error") {
+        clearInterval(getTemplateReviewsAPI);
         console.log("回傳錯誤");
-        relatedReviewURL = "";
+        templateReviewsAPI = "";
         window.location.reload();
 
-        saveRelatedReviewURL();
-      } else if (response.reviewURL != "") {
-        relatedReviewURL = response.reviewURL;
-        clearInterval(getRelatedReviewURL);
-        step = 2;
+        saveTemplateReviewsAPI();
+      } else if (response.reviewsAPI != "") {
+        templateReviewsAPI = response.reviewsAPI;
+        clearInterval(getTemplateReviewsAPI);
 
-        console.log("relatedReviewURL: " + relatedReviewURL);
+        console.log("templateReviewsAPI: " + templateReviewsAPI);
+        reviewsDivShow();
       }
     });
   }, 500);
 }
 
 // 等待評論顯示
-function ReviewsShow() {
-  clearInterval(waitReviewsShow);
+function reviewsDivShow() {
+  clearInterval(waitReviewsDivShow);
 
-  var waitReviewsShow = setInterval(() => {
+  var waitReviewsDivShow = setInterval(() => {
     if (
       document.getElementsByClassName("section-scrollbox")[0] &&
       document.getElementsByClassName("section-scrollbox")[0].children.length >
         1
     ) {
       console.log(
-        "目前div數量: " +
+        "currentReviewsCount: " +
           document.getElementsByClassName("section-scrollbox")[0].children[
             document.getElementsByClassName("section-scrollbox")[0].children
               .length - 2
           ].children.length
       );
 
-      var waitCount = 0;
-      if (reviewsCount < 10) {
-        waitCount = reviewsCount * 3 - 1;
+      var loadReviewsCount = 0;
+      if (allReviewsCount < 10) {
+        loadReviewsCount = allReviewsCount * 3 - 1;
       } else {
-        waitCount = 29;
+        loadReviewsCount = 29;
       }
+
       if (
         document.getElementsByClassName("section-scrollbox")[0].children[
           document.getElementsByClassName("section-scrollbox")[0].children
             .length - 2
-        ].children.length >= waitCount
+        ].children.length >= loadReviewsCount
       ) {
-        clearInterval(waitReviewsShow);
+        clearInterval(waitReviewsDivShow);
         let targetDiv =
           document.getElementsByClassName("section-scrollbox")[0].children[
             document.getElementsByClassName("section-scrollbox")[0].children
               .length - 2
           ];
 
-        showReliability(targetDiv);
+        getReviewsArr(targetDiv);
         createReviewsObserver();
 
         // // 情緒測試
@@ -293,29 +299,29 @@ function ReviewsShow() {
 
         // // 情緒測試
 
-        // model測試
-        var url = "https://thesis-model-backend.herokuapp.com/predict";
-        var data = {
-          content_length: 30,
-          photos_count: 0,
-          star_gap: 0.6,
-          like_count: 0,
-          reply: false,
-          reviewer_rank: 0,
-        };
+        // // model測試
+        // var url = "https://thesis-model-backend.herokuapp.com/predict";
+        // var data = {
+        //   content_length: 30,
+        //   photos_count: 0,
+        //   star_gap: 0.6,
+        //   like_count: 0,
+        //   reply: false,
+        //   reviewer_rank: 0,
+        // };
 
-        fetch(url, {
-          method: "POST", // or 'PUT'
-          body: JSON.stringify(data), // data can be `string` or {object}!
-          headers: new Headers({
-            "Content-Type": "application/json",
-          }),
-        })
-          .then((res) => res.json())
-          .catch((error) => console.error("Error:", error))
-          .then((response) => console.log("Success:", response));
+        // fetch(url, {
+        //   method: "POST", // or 'PUT'
+        //   body: JSON.stringify(data), // data can be `string` or {object}!
+        //   headers: new Headers({
+        //     "Content-Type": "application/json",
+        //   }),
+        // })
+        //   .then((res) => res.json())
+        //   .catch((error) => console.error("Error:", error))
+        //   .then((response) => console.log("Success:", response));
 
-        // model測試
+        // // model測試
       }
     } else {
       console.log("目前沒有div");
@@ -323,6 +329,7 @@ function ReviewsShow() {
   }, 500);
 }
 
+// 監聽評論Div的變化
 function createReviewsObserver() {
   let reviewsDiv = document.getElementsByClassName("section-scrollbox");
 
@@ -336,9 +343,10 @@ function createReviewsObserver() {
     for (const mutation of mutationsList) {
       if (
         mutation.type === "childList" &&
-        mutation.target.children.length - 1 != lastVisibleReviewIndex
+        mutation.target.children.length != currentReviewsCount
       ) {
-        showReliability(mutation.target);
+        // console.log("api: " + checkReviewsAPI);
+        getReviewsArr(mutation.target);
       }
     }
   };
@@ -353,17 +361,65 @@ function createReviewsObserver() {
   // observer.disconnect();
 }
 
+// 取得評論內容
+function getReviewsArr(targetDiv) {
+  if (templateReviewsAPI != "") {
+    currentReviewsCount = targetDiv.children.length;
+    console.log("currentReviewsCount: " + currentReviewsCount);
+
+    let reviewsAPI =
+      templateReviewsAPI.substring(0, templateReviewsAPI.indexOf("!2m2!") + 7) +
+      ((currentReviewsCount + 1) / 3 - 10).toString() +
+      templateReviewsAPI.substring(
+        templateReviewsAPI.indexOf("!2m2!") + 8,
+        templateReviewsAPI.length
+      );
+
+    reviewsArr = [];
+
+    fetch(reviewsAPI)
+      .then(function (response) {
+        return response.text();
+      })
+      .then(function (requests_result) {
+        console.log("reviewsAPI: " + reviewsAPI);
+
+        let pretext = ")]}'";
+        let text = requests_result.replace(pretext, "");
+        let soup = JSON.parse(text);
+
+        if (soup[2]) {
+          for (j = 0; j < soup[2].length; j++) {
+            reviewsArr.push(soup[2][j]);
+
+            if (j == soup[2].length - 1) {
+              console.log(reviewsArr);
+              showReliability(targetDiv);
+            }
+          }
+        }
+      })
+      .catch((rejected) => {
+        console.log(rejected);
+
+        reviewsArr = [];
+        getReviewsArr(targetDiv);
+      });
+  }
+}
+
+// 顯示可靠度標籤
 function showReliability(targetDiv) {
   for (
-    reviewIndex = lastVisibleReviewIndex;
-    reviewIndex < targetDiv.children.length - 1;
+    reviewIndex = (currentReviewsCount + 1) / 3 - 10;
+    reviewIndex < (currentReviewsCount + 1) / 3;
     reviewIndex++
   ) {
-    let currentReview = targetDiv.children[reviewIndex];
+    let targetReview = targetDiv.children[reviewIndex * 3];
 
-    if (currentReview.getAttribute("aria-label")) {
+    if (targetReview.getAttribute("aria-label")) {
       let reviewDiv =
-        currentReview.children[0].children[2].children[3].children[0];
+        targetReview.children[0].children[2].children[3].children[0];
 
       // console.log(reviewDiv);
 
@@ -409,8 +465,6 @@ function showReliability(targetDiv) {
       reviewDiv.appendChild(innerDiv);
     }
   }
-  lastVisibleReviewIndex = targetDiv.children.length - 1;
-  console.log("目前div數量: " + lastVisibleReviewIndex);
 }
 
 // function delay(n){
