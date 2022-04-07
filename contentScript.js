@@ -1,3 +1,4 @@
+var storeURL = "";
 var allReviewsCount = 0;
 var starMean = 0;
 var newsReviewsAPI = "";
@@ -19,6 +20,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, response) {
 
   if (request.greeting === "hello") {
     // 初始化
+    storeURL = "";
     allReviewsCount = 0;
     starMean = 0;
     newsReviewsAPI = "";
@@ -44,10 +46,12 @@ chrome.runtime.onMessage.addListener(function (request, sender, response) {
           .slice(0, -4)
           .replace(/,/g, "");
 
+        storeURL = window.location.href;
         allReviewsCount = parseInt(allReviewsCountStr);
         starMean = parseFloat(starMeanDiv[0].innerHTML);
         // alert("allReviewsCount: " + allReviewsCount);
 
+        console.log("storeURL: " + storeURL); // 商家URL
         console.log("allReviewsCount: " + allReviewsCount); // 評論數量
         console.log("starMean: " + starMean); // 評分平均
 
@@ -170,7 +174,8 @@ function saveTemplateReviewsAPI(targetDiv) {
       newsReviewsAPI = "";
 
       delay(8);
-      saveTemplateReviewsAPI(targetDiv);
+      window.location.href = storeURL;
+      reviewsDivShow();
     }
   });
 }
@@ -482,18 +487,18 @@ function showReliability(targetDiv, oldReviewsCount) {
             default:
               break;
           }
-    
+
           var innerDiv = document.createElement("div");
           innerDiv.className = "add-div";
           innerDiv.textContent = reliability;
-    
+
           innerDiv.style.fontSize = "12px";
           innerDiv.style.color = "#ffffff";
           innerDiv.style.backgroundColor = color;
           innerDiv.style.margin = "1px 8px";
           innerDiv.style.padding = "2px 8px";
           innerDiv.style.borderRadius = "20px";
-    
+
           reviewDiv.appendChild(innerDiv);
           predictElement = reliabilityArr.length;
         }
