@@ -23,7 +23,7 @@
     ],
 
     "host_permissions": [
-        "https://www.google.com/maps/*"
+        "https://www.google.com/maps/place/*"
     ],
 
     "action": {
