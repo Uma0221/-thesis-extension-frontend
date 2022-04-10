@@ -1,4 +1,4 @@
-let storeName = "";
+let oldStoreName = "";
 let reviewsAPI = "";
 
 let starMean = 0;
@@ -22,15 +22,17 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   reviewsArr = [];
   reliabilityArr = [];
 
-  clearTimeout(reviewsDivShow1);
-  clearTimeout(reviewsDivShow2);
+  // clearTimeout(reviewsDivShow1);
+  // clearTimeout(reviewsDivShow2);
   // 初始化-------------------------------
-  // console.log("storeName: "+message.storeName);
   reviewsAPI = message.reviewsAPI;
   console.log("reviewsAPI: " + reviewsAPI);
 
-  if (storeName != message.storeName) {
-    storeName = message.storeName;
+  console.log("oldStoreName: " + oldStoreName);
+  console.log("storeName: " + message.storeName);
+
+  if (oldStoreName != message.storeName) {
+    oldStoreName = message.storeName;
     newsReviewsAPI =
       reviewsAPI.substring(
         0,
@@ -131,28 +133,43 @@ function getAllNewsReviews() {
     reviewsDecimal = parseInt(allReviewsCount / 10);
   }
 
+  console.log("newsgeting...");
+  const newsgeting = setInterval(() => console.log("newsgeting..."), 1000);
+
   for (i = 0; i < reviewsDecimal; i++) {
     const otherNewsReviewsAPI =
-      reviewsAPI.substring(
+      newsReviewsAPI.substring(
         0,
-        reviewsAPI.indexOf("!2m2!") +
-          reviewsAPI.slice(reviewsAPI.indexOf("!2m2!") + 4).indexOf("!") +
+        newsReviewsAPI.indexOf("!2m2!") +
+          newsReviewsAPI
+            .slice(newsReviewsAPI.indexOf("!2m2!") + 4)
+            .indexOf("!") +
           7
       ) +
       (i * 10).toString() +
-      reviewsAPI.substring(
-        reviewsAPI.indexOf("!2m2!") +
-          reviewsAPI.slice(reviewsAPI.indexOf("!2m2!") + 5).indexOf("!") +
+      newsReviewsAPI.substring(
+        newsReviewsAPI.indexOf("!2m2!") +
+          newsReviewsAPI
+            .slice(newsReviewsAPI.indexOf("!2m2!") + 5)
+            .indexOf("!") +
           5,
-        reviewsAPI.length
+        newsReviewsAPI.length
       );
 
-    // console.log("otherNewsReviewsAPI: "+otherNewsReviewsAPI); // 後續載入的API
+    // console.log("otherNewsReviewsAPI: " + otherNewsReviewsAPI); // 後續載入的API
 
     fetch(otherNewsReviewsAPI)
       .then(function (response) {
         chrome.runtime.sendMessage({ type: "getReviewsAPI" });
         return response.text();
+      })
+      .catch((error) => {
+        clearInterval(newsgeting);
+        console.log("newsget error");
+        console.error("error: " + error);
+        time = [];
+
+        // getAllNewsReviews();
       })
       .then(function (requests_result) {
         const pretext = ")]}'";
@@ -166,6 +183,8 @@ function getAllNewsReviews() {
         }
 
         if (APIReturnCount == reviewsDecimal - 1) {
+          clearInterval(newsgeting);
+          console.log("newsget complete");
           APIReturnCount = 0;
           newsReviewsAPI = "";
 
@@ -173,12 +192,6 @@ function getAllNewsReviews() {
         } else {
           APIReturnCount++;
         }
-      })
-      .catch((rejected) => {
-        console.log("rejected: " + rejected);
-        time = [];
-
-        // getAllNewsReviews();
       });
   }
 }
@@ -189,12 +202,28 @@ function getAllNewsReviews() {
 function getReviewsArr(targetDiv) {
   reviewsArr = [];
 
+  console.log("currentgeting...");
+  const currentgeting = setInterval(
+    () => console.log("currentgeting..."),
+    1000
+  );
+
   fetch(reviewsAPI)
     .then(function (response) {
       chrome.runtime.sendMessage({ type: "getReviewsAPI" });
       return response.text();
     })
+    .catch((error) => {
+      clearInterval(currentgeting);
+      console.log("currentget error");
+      console.error("error: " + error);
+      reviewsArr = [];
+
+      // getReviewsArr(targetDiv);
+    })
     .then(function (requests_result) {
+      clearInterval(currentgeting);
+      console.log("currentget complete");
       // console.log("reviewsAPI: " + reviewsAPI);
       const pretext = ")]}'";
       const text = requests_result.replace(pretext, "");
@@ -210,12 +239,6 @@ function getReviewsArr(targetDiv) {
           }
         }
       }
-    })
-    .catch((rejected) => {
-      console.log("rejected: " + rejected);
-      reviewsArr = [];
-
-      // getReviewsArr(targetDiv);
     });
 }
 
@@ -301,6 +324,9 @@ function modelPredict(targetDiv) {
     sendModelArr.push(data);
   }
 
+  console.log("predicting...");
+  const predicting = setInterval(() => console.log("predicting..."), 1000);
+
   // console.log("sendModelArr: "+sendModelArr); //傳給模型的資料
   fetch(url, {
     method: "POST", // or 'PUT'
@@ -310,8 +336,14 @@ function modelPredict(targetDiv) {
     }),
   })
     .then((res) => res.json())
-    .catch((error) => console.error("Error:", error))
+    .catch((error) => {
+      clearInterval(predicting);
+      console.log("predict error");
+      console.error("Error:", error);
+    })
     .then((response) => {
+      clearInterval(predicting);
+      console.log("predict complete");
       reliabilityArr = response;
       console.log(reliabilityArr); //回傳的預測結果
       if (reviewsArr != []) {

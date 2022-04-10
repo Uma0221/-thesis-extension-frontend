@@ -8,7 +8,13 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
     (tab.url.startsWith("https://www.google.com/maps/place") ||
       tab.url.startsWith("https://www.google.com.tw/maps/place"))
   ) {
-    const currentURLFront = tab.url.slice(34);
+    let currentURLFront;
+    if (tab.url.startsWith("https://www.google.com/maps/place")) {
+      currentURLFront = tab.url.slice(34);
+    } else {
+      currentURLFront = tab.url.slice(37);
+    }
+
     const storeName = currentURLFront.slice(0, currentURLFront.indexOf("/"));
 
     if (storeName != "") {
@@ -59,6 +65,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
     //回傳評論的API
     case "getReviewsAPI":
       reviewsAPI = "";
+      // console.log(reviewsAPI)
       sendResponse({ farewell: "goodbye" });
 
       break;
