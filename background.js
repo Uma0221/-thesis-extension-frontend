@@ -5,7 +5,8 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
   if (
     reviewsAPI != "" &&
     changeInfo.status === "complete" &&
-    tab.url.startsWith("https://www.google.com/maps/place")
+    (tab.url.startsWith("https://www.google.com/maps/place") ||
+      tab.url.startsWith("https://www.google.com.tw/maps/place"))
   ) {
     const currentURLFront = tab.url.slice(34);
     const storeName = currentURLFront.slice(0, currentURLFront.indexOf("/"));
@@ -28,13 +29,16 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
 // 監聽API
 chrome.webRequest.onBeforeRequest.addListener(
   function (details) {
-    if (details.url.startsWith("https://www.google.com/maps/preview/review/")) {
+    if (
+      details.url.startsWith("https://www.google.com/maps/preview/review/") ||
+      details.url.startsWith("https://www.google.com.tw/maps/preview/review/")
+    ) {
       reviewsAPI = details.url;
       // console.log(reviewsAPI);
     }
   },
   {
-    urls: ["https://www.google.com/maps/*"],
+    urls: ["https://www.google.com/maps/*", "https://www.google.com.tw/maps/*"],
   }
 );
 
@@ -50,15 +54,17 @@ chrome.webRequest.onBeforeRequest.addListener(
 // );
 
 // 回傳狀態
-chrome.runtime.onMessage.addListener(function (message, sender, response) {
+chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   switch (message.type) {
     //回傳評論的API
     case "getReviewsAPI":
       reviewsAPI = "";
+      sendResponse({ farewell: "goodbye" });
 
       break;
 
     default:
       console.error("Unrecognised message: ", message);
+      sendResponse({ farewell: "goodbye" });
   }
 });

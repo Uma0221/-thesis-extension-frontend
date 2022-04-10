@@ -10,7 +10,7 @@
 
     "content_scripts": [
         {
-          "matches": ["https://*/*"],
+          "matches": ["<all_urls>"],
           "run_at": "document_start",
           "js": ["contentScript.js"]
         }
@@ -23,7 +23,8 @@
     ],
 
     "host_permissions": [
-        "https://www.google.com/maps/place/*"
+        "https://www.google.com/maps/place/*",
+        "https://www.google.com.tw/maps/place/*"
     ],
 
     "action": {
