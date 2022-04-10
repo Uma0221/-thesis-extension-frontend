@@ -1,4 +1,8 @@
+let errorFlag = false;
+
 let oldStoreName = "";
+let monthRateArr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
 let reviewsAPI = "";
 
 let starMean = 0;
@@ -11,18 +15,19 @@ let newsReviewsAPI = "";
 let reviewsArr = [];
 let reliabilityArr = [];
 
-let errorFlag = false;
 let color = "#c7c7cc";
-let reliability = "評估中";
+let reliability = "評估中...";
 
-let reviewsDivShow1;
-let reviewsDivShow2;
-let reviewsDivShow3;
+let waitReviewsDiv;
+let waitReviewDivs;
+let waitMonthRateArr;
+let waitAddDivs;
 
 // 監聽評論API
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   // 初始化-------------------------------
   reviewsAPI = "";
+
   starMean = 0;
   allReviewsCount = 0;
 
@@ -34,11 +39,12 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   reliabilityArr = [];
 
   color = "#c7c7cc";
-  reliability = "評估中";
+  reliability = "評估中...";
 
-  // clearTimeout(reviewsDivShow1);
-  // clearTimeout(reviewsDivShow2);
-  // clearTimeout(reviewsDivShow3);
+  // clearTimeout(waitReviewsDiv);
+  // clearTimeout(waitReviewDivs);
+  // clearTimeout(waitMonthRateArr);
+  // clearTimeout(waitAddDivs);
   // 初始化-------------------------------
   reviewsAPI = message.reviewsAPI;
   console.log("reviewsAPI: " + reviewsAPI);
@@ -114,13 +120,13 @@ function reviewsDivShow() {
       addReviewsLabel(targetDiv);
 
       if (newsReviewsAPI != "") {
-        getAllNewsReviews();
+        getMonthRate();
         console.log(
           "starMean: " + starMean + ", allReviewsCount: " + allReviewsCount
         );
       }
     } else {
-      reviewsDivShow1 = setTimeout(reviewsDivShow, 500);
+      waitReviewsDiv = setTimeout(reviewsDivShow, 500);
     }
   } else if (
     document.getElementsByClassName("section-scrollbox")[0] &&
@@ -129,14 +135,15 @@ function reviewsDivShow() {
     newsReviewsAPI = "";
     console.log("這是飯店");
   } else {
-    reviewsDivShow1 = setTimeout(reviewsDivShow, 500);
+    waitReviewsDiv = setTimeout(reviewsDivShow, 500);
   }
 }
 
 // 取得最新的評論時間
-function getAllNewsReviews() {
+function getMonthRate() {
+  monthRateArr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   let APIReturnCount = 0;
-  let time = [];
+  let timeCount = 0;
 
   let reviewsDecimal = 0;
   if (allReviewsCount > 2000) {
@@ -171,7 +178,7 @@ function getAllNewsReviews() {
         newsReviewsAPI.length
       );
 
-    console.log("otherNewsReviewsAPI: " + otherNewsReviewsAPI); // 後續載入的API
+    // console.log("otherNewsReviewsAPI: " + otherNewsReviewsAPI); // 後續載入的API
 
     fetch(otherNewsReviewsAPI)
       .then(function (response) {
@@ -180,11 +187,15 @@ function getAllNewsReviews() {
       })
       .catch((error) => {
         clearInterval(newsgeting);
+        errorFlag = true;
+
         console.log("newsget error");
         console.error("error: " + error);
-        time = [];
 
-        // getAllNewsReviews();
+        monthRateArr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        timeCount = 0;
+
+        // getMonthRate();
       })
       .then(function (requests_result) {
         const pretext = ")]}'";
@@ -194,7 +205,12 @@ function getAllNewsReviews() {
         if (soup[2]) {
           for (j = 0; j < soup[2].length; j++) {
             if (soup[2][j][1].indexOf("年") < 0) {
-              time.push(soup[2][j][1]);
+              timeCount++;
+              if (soup[2][j][1].indexOf("月") < 0) {
+                monthRateArr[0]++;
+              } else {
+                monthRateArr[parseInt(soup[2][j][1].slice(0, -4))]++;
+              }
             }
           }
         }
@@ -205,7 +221,11 @@ function getAllNewsReviews() {
           APIReturnCount = 0;
           newsReviewsAPI = "";
 
-          console.log(time); // 前2000筆的評論時間
+          for (i = 0; i < monthRateArr.length; i++) {
+            monthRateArr[i] = (monthRateArr[i] / timeCount).toFixed(2);
+          }
+          console.log(monthRateArr); // 前2000筆的評論時
+          timeCount = 0;
         } else {
           APIReturnCount++;
         }
@@ -216,7 +236,7 @@ function getAllNewsReviews() {
 // ---------------------------------------------------------------------------------畫面顯示
 // 新增評論標籤
 function addReviewsLabel(targetDiv) {
-  clearTimeout(reviewsDivShow2);
+  clearTimeout(waitReviewDivs);
 
   if (((targetDiv.children.length + 1) / 3) % 10 > 0) {
     oldReviewsCount = parseInt((targetDiv.children.length + 1) / 30) * 10;
@@ -259,7 +279,7 @@ function addReviewsLabel(targetDiv) {
         reviewDiv.appendChild(innerDiv);
       } else {
         reviewIndex = currentReviewsCount;
-        reviewsDivShow2 = setTimeout(addReviewsLabel, 500, targetDiv);
+        waitReviewDivs = setTimeout(addReviewsLabel, 500, targetDiv);
       }
 
       if (
@@ -270,7 +290,7 @@ function addReviewsLabel(targetDiv) {
       }
     }
   } else {
-    reviewsDivShow2 = setTimeout(addReviewsLabel, 500, targetDiv);
+    waitReviewDivs = setTimeout(addReviewsLabel, 500, targetDiv);
   }
 }
 
@@ -309,16 +329,28 @@ function getReviewsArr(targetDiv) {
       const soup = JSON.parse(text);
 
       if (soup[2]) {
-        for (j = 0; j < soup[2].length; j++) {
-          reviewsArr.push(dataProcessing(soup[2][j]));
-
-          if (reviewsArr.length == soup[2].length) {
-            console.log(reviewsArr); //目前的評論內容
-            modelPredict(targetDiv);
-          }
-        }
+        getUsefulData(soup[2], targetDiv);
       }
     });
+}
+
+function getUsefulData(oriArr, targetDiv) {
+  clearTimeout(waitMonthRateArr);
+
+  if (typeof monthRateArr[0] == "string") {
+    for (j = 0; j < oriArr.length; j++) {
+      reviewsArr.push(dataProcessing(oriArr[j]));
+
+      if (reviewsArr.length == oriArr.length) {
+        console.log(reviewsArr); //目前的評論內容
+        modelPredict(targetDiv);
+      }
+    }
+  } else if (errorFlag) {
+    showReliability(targetDiv);
+  } else {
+    waitMonthRateArr = setTimeout(getUsefulData, 500, oriArr);
+  }
 }
 
 // 目前評論資料特徵處理
@@ -327,11 +359,11 @@ function dataProcessing(soupArr) {
     let content_length = 0;
     let photos_count = 0;
     let content = "";
+    let month_rate = 0;
     let reply = false;
     let reviewer_rank = 0;
 
     const star_gap = Math.abs(parseInt(soupArr[4]) * 10 - starMean * 10) / 10;
-    const date = soupArr[1];
     const like_count = soupArr[16];
     // const reviewer_count = soupArr[12][1][1]
 
@@ -351,12 +383,21 @@ function dataProcessing(soupArr) {
 
       content_length = content.length;
     }
+
     if (Array.isArray(soupArr[14])) {
       photos_count = soupArr[14].length;
     }
+
+    if (soupArr[1].indexOf("月") < 0) {
+      month_rate = parseFloat(monthRateArr[0]);
+    } else {
+      month_rate = parseFloat(monthRateArr[parseInt(soupArr[1].slice(0, -4))]);
+    }
+
     if (soupArr[9]) {
       reply = true;
     }
+
     if (soupArr[12][1][0]) {
       reviewer_rank = soupArr[12][1][0][0];
     }
@@ -366,7 +407,7 @@ function dataProcessing(soupArr) {
       photos_count,
       `"${content}"`,
       star_gap,
-      date,
+      month_rate,
       like_count,
       reply,
       reviewer_rank,
@@ -393,7 +434,11 @@ function modelPredict(targetDiv) {
         index: i,
         content_length: reviewsArr[i][0],
         photos_count: reviewsArr[i][1],
+        content_positive: 0.33, //正向情緒
+        content_neutral: 0.34,  //中立情緒
+        content_negative: 0.33, //負向情緒
         star_gap: reviewsArr[i][3],
+        month_rate: reviewsArr[i][4],
         like_count: reviewsArr[i][5],
         reply: reviewsArr[i][6],
         reviewer_rank: reviewsArr[i][7],
@@ -436,7 +481,7 @@ function modelPredict(targetDiv) {
 
 // 顯示可靠度標籤
 function showReliability(targetDiv) {
-  clearTimeout(reviewsDivShow3);
+  clearTimeout(waitAddDivs);
   if (Number.isInteger(currentReviewsCount)) {
     if (reliabilityArr.length == currentReviewsCount - oldReviewsCount) {
       for (
@@ -485,7 +530,7 @@ function showReliability(targetDiv) {
           targetReview.style.backgroundColor = color;
         } else {
           reviewIndex = currentReviewsCount;
-          reviewsDivShow3 = setTimeout(showReliability, 500, targetDiv);
+          waitAddDivs = setTimeout(showReliability, 500, targetDiv);
         }
 
         if (reviewIndex == currentReviewsCount - 1) {
@@ -500,6 +545,6 @@ function showReliability(targetDiv) {
       // modelPredict(targetDiv);
     }
   } else {
-    reviewsDivShow3 = setTimeout(showReliability, 500, targetDiv);
+    waitAddDivs = setTimeout(showReliability, 500, targetDiv);
   }
 }
