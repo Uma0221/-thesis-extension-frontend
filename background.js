@@ -40,7 +40,7 @@ chrome.webRequest.onBeforeRequest.addListener(
       details.url.startsWith("https://www.google.com.tw/maps/preview/review/")
     ) {
       reviewsAPI = details.url;
-      // console.log(reviewsAPI);
+      console.log(reviewsAPI);
     }
   },
   {
