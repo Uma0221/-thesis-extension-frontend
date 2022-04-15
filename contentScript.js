@@ -1,36 +1,35 @@
-let errorFlag = false;
+let errorFlag = false; // 判斷fetch時有沒有錯誤
 
-let reviewsPosition = -1;
-let reviewsAPIsArr = [];
-let oldStoreName = "";
-let newsReviewsAPI = "";
-let lastCurrentReviewsCount = 0;
-let currentReviewsCount = 0;
+let currentReviewsFirstIndex = -1; // 目前回傳reviewsAPI的開始index
+let reviewsAPIsArr = []; // 等待預測可靠度的reviewsAPI
+let oldStoreName = ""; // 舊的商家名稱
+let newsReviewsAPI = ""; // 最新排序的reviewsAPI
+let oldLoadReviewsCount = 0; // 上次載入的頁面總評論數
+let newLoadReviewsCount = 0; // 目前載入的頁面總評論數
+let callReviewsLabelShowFlag = false; // 判斷取得評論可靠度後，有沒有再次要求初始化label顯示
 
-let reviewsDivFlag = false;
-let targetDiv = undefined;
-let color = "#c7c7cc";
-let reliability = "評估中...";
+let targetDiv = undefined; // 所有評論的parent
+let color = "#c7c7cc"; // 初始的可靠度label顏色
+let reliability = "評估中..."; // 初始的可靠度label文字
 
-let starMean = 0;
-let allReviewsCount = 0;
-let monthRateArr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let starMean = 0; // 商家平均評分
+let allReviewsCount = 0; // 商家總評論數
+let monthRateArr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 商家一年內各月份評論比重
 
-let reviewsAPI = "";
-let currentReviewsPosition = -1;
-let reviewsArr = [];
-let reliabilityArr = [];
-
-let callReciewsDivFlag = false;
+let reviewsAPI = ""; // 預測可靠度的reviewsAPI
+let reviewsFirstIndex = -1; // 預測可靠度的reviewsAPI的開始index
+let featuresArr = []; // 評論特徵內容
+let reliabilityArr = []; // 評論可靠度
 // -------------------------------------------------------------
-let waitReviewsDiv;
-let waitReviewDivs;
-let waitMonthRateArr;
-let waitAddDivs;
+let waitTargetDiv; // 等待targetDiv顯示
+let waitAddReviewsLabel; // 等待初始化label顯示
+let waitMonthRateArr; // 等待取得一年內各月份評論比重
+let waitAddReliability; // 等待可靠度label顯示
 
-// 監聽評論API
+// 監聽background回傳
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
-  reviewsPosition = parseInt(
+  // 取得目前回傳reviewsAPI的開始index
+  currentReviewsFirstIndex = parseInt(
     message.reviewsAPI.substring(
       message.reviewsAPI.indexOf("!2m2!") +
         message.reviewsAPI
@@ -45,20 +44,27 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
     )
   );
 
-  if (reviewsPosition == 0) {
-    clearTimeout(waitReviewsDiv);
-    clearTimeout(waitReviewDivs);
+  // 若目前回傳reviewsAPI的開始index為0，代表targetDiv內容刷新
+  if (currentReviewsFirstIndex == 0) {
+    // 取消所有等待
+    clearTimeout(waitTargetDiv);
+    clearTimeout(waitAddReviewsLabel);
     clearTimeout(waitMonthRateArr);
-    clearTimeout(waitAddDivs);
+    clearTimeout(waitAddReliability);
 
+    // 清空預測可靠度的reviewsAPI，加入目前回傳reviewsAPI
     reviewsAPIsArr = [];
     reviewsAPIsArr.push(message.reviewsAPI);
+
+    // console.log("oldStoreName: " + oldStoreName);
+    // console.log("storeName: " + message.storeName);
+    // 若舊的商家名稱與目前的商家名稱不同，代表目前的商家為新商家
     if (oldStoreName != message.storeName) {
-      // console.log("oldStoreName: " + oldStoreName);
-      // console.log("storeName: " + message.storeName);
+      // 將新的商家名稱存成舊的商家名稱
       oldStoreName = message.storeName;
       sendResponse({ farewell: "goodbye" });
 
+      // 取得新商家最新排序的reviewsAPI
       newsReviewsAPI =
         reviewsAPIsArr[0].substring(
           0,
@@ -77,34 +83,41 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
             14,
           reviewsAPIsArr[0].length
         );
-
-      lastCurrentReviewsCount = 0;
-      currentReviewsCount = 0;
-
       // console.log("newsReviewsAPI: " + newsReviewsAPI);
     } else {
       sendResponse({ farewell: "goodbye" });
     }
+
+    // 將上次載入及目前載入的頁面總評論數初始化
+    oldLoadReviewsCount = 0;
+    newLoadReviewsCount = 0;
+    // 取消要求初始化label顯示
+    callReviewsLabelShowFlag = false;
   } else {
+    // 加入目前回傳reviewsAPI到等待預測可靠度Arr
     reviewsAPIsArr.push(message.reviewsAPI);
     sendResponse({ farewell: "goodbye" });
   }
 
   console.log(reviewsAPIsArr);
 
-  reviewsDivShow();
-  // if (reviewsAPIsArr.length == 1) {
-  //   getReviewsArr();
-  // }
+  // 取得targetDiv
+  targetDivShow();
+
+  // 若現在沒有其他reviewsAPI的可靠度 且 等待的reviewsAPI為目前回傳reviewsAPI
+  if (!callReviewsLabelShowFlag && reviewsAPIsArr.length == 1) {
+    // 取得等待預測可靠度的評論
+    getallReviewsArr();
+  }
 });
 
 // ---------------------------------------------------------------------------------label顯示
 
-// 等待評論顯示
-function reviewsDivShow() {
-  clearTimeout(waitReviewsDiv);
+// 取得targetDiv
+function targetDivShow() {
+  // 取消等待targetDiv顯示
+  clearTimeout(waitTargetDiv);
   // 初始化-------------------------------
-  reviewsDivFlag = false;
   targetDiv = undefined;
   color = "#c7c7cc";
   reliability = "評估中...";
@@ -122,118 +135,123 @@ function reviewsDivShow() {
     document.getElementsByClassName("jANrlb")[0] &&
     document.getElementsByClassName("jANrlb")[0].children.length == 4
   ) {
+    // 取得所有評論的parent
     targetDiv =
       document.getElementsByClassName("section-scrollbox")[0].children[
         document.getElementsByClassName("section-scrollbox")[0].children
           .length - 2
       ];
 
+    // 若targetDiv的children有data-review-id的attribute，代表評論已生成
     if (
       targetDiv.children.length > 1 &&
       targetDiv.children[0].getAttribute("data-review-id")
     ) {
-      // currentReviewsCount = (targetDiv.children.length + 1) / 3;
+      // 評論加入初始化的label
       addReviewsLabel();
 
+      // 若有最新排序的reviewsAPI，代表還沒取得此商家一年內各月份評論比重
       if (newsReviewsAPI != "") {
-        // createReviewsObserver();
+        // 取得商家一年內各月份評論比重
         getMonthRate();
       }
     } else {
-      waitReviewsDiv = setTimeout(reviewsDivShow, 500);
+      waitTargetDiv = setTimeout(targetDivShow, 500);
     }
   } else if (
+    // 跟targetDiv同階層的div數量太多，代表是飯店評論
     document.getElementsByClassName("section-scrollbox")[0] &&
     document.getElementsByClassName("section-scrollbox")[0].children.length > 10
   ) {
+    // 初始化最新排序的reviewsAPI
     newsReviewsAPI = "";
     console.log("這是飯店");
   } else {
-    waitReviewsDiv = setTimeout(reviewsDivShow, 500);
+    waitTargetDiv = setTimeout(targetDivShow, 500);
   }
 }
 
-// 新增評論標籤
+// 評論加入初始化的label
 function addReviewsLabel() {
-  clearTimeout(waitReviewDivs);
+  // 取消等待初始化label顯示
+  clearTimeout(waitAddReviewsLabel);
 
-  if (targetDiv && targetDiv.children) {
-    currentReviewsCount = (targetDiv.children.length + 1) / 3;
+  // 若目前載入的頁面總評論數是整數 且 上次載入的頁面總評論數比目前載入的頁面總評論數小
+  if (
+    targetDiv.children &&
+    Number.isInteger((targetDiv.children.length + 1) / 3) &&
+    oldLoadReviewsCount < (targetDiv.children.length + 1) / 3
+  ) {
+    // 取得目前載入的頁面總評論數
+    newLoadReviewsCount = (targetDiv.children.length + 1) / 3;
 
-    if (lastCurrentReviewsCount % 10 > 0) {
-      lastCurrentReviewsCount = 0;
-    } else if (currentReviewsCount <= lastCurrentReviewsCount) {
-      if (currentReviewsCount % 10 > 0) {
-        lastCurrentReviewsCount = parseInt(currentReviewsCount / 10) * 10;
-      } else {
-        lastCurrentReviewsCount = currentReviewsCount - 10;
-      }
+    // 若上次載入的頁面總評論數不到10筆，代表是評論尾端
+    if (oldLoadReviewsCount % 10 > 0) {
+      // 初始化上次載入的頁面總評論數
+      oldLoadReviewsCount = 0;
     }
 
-    console.log("lastCurrentReviewsCount: " + lastCurrentReviewsCount);
-    console.log("currentReviewsCount: " + currentReviewsCount);
+    console.log("oldLoadReviewsCount: " + oldLoadReviewsCount);
+    console.log("newLoadReviewsCount: " + newLoadReviewsCount);
 
-    if (Number.isInteger(currentReviewsCount)) {
-      for (
-        reviewIndex = lastCurrentReviewsCount;
-        reviewIndex < currentReviewsCount;
-        reviewIndex++
-      ) {
-        const targetReview = targetDiv.children[reviewIndex * 3];
+    // 此次載入的評論加入初始化的label
+    for (
+      reviewIndex = oldLoadReviewsCount;
+      reviewIndex < newLoadReviewsCount;
+      reviewIndex++
+    ) {
+      // 評論div的index為3的倍數
+      const reviewDiv = targetDiv.children[reviewIndex * 3];
 
-        if (targetReview && targetReview.getAttribute("aria-label")) {
-          const reviewDiv =
-            targetReview.children[0].children[2].children[3].children[0];
+      // 若評論div存在 且 含有aria-label的attribute，代表評論div已生成
+      if (reviewDiv && reviewDiv.getAttribute("aria-label")) {
+        // 取得要加入label的div
+        const labelParentDiv =
+          reviewDiv.children[0].children[2].children[3].children[0];
 
-          let innerDiv = document.createElement("div");
-          innerDiv.id = "add-div-" + reviewIndex.toString();
-          innerDiv.className = "add-div";
-          innerDiv.textContent = reliability;
+        // label初始化設定
+        let labelDiv = document.createElement("div");
+        labelDiv.id = "add-div-" + reviewIndex.toString();
+        labelDiv.className = "add-div";
+        labelDiv.textContent = reliability;
 
-          innerDiv.style.fontSize = "12px";
-          innerDiv.style.color = "#ffffff";
-          innerDiv.style.backgroundColor = color;
-          innerDiv.style.margin = "1px 8px";
-          innerDiv.style.padding = "2px 8px";
-          innerDiv.style.borderRadius = "20px";
+        labelDiv.style.fontSize = "12px";
+        labelDiv.style.color = "#ffffff";
+        labelDiv.style.backgroundColor = color;
+        labelDiv.style.margin = "1px 8px";
+        labelDiv.style.padding = "2px 8px";
+        labelDiv.style.borderRadius = "20px";
 
-          if (document.getElementById("add-div-" + reviewIndex.toString())) {
-            document
-              .getElementById("add-div-" + reviewIndex.toString())
-              .remove();
-            console.log("removeDiv");
-          }
-          reviewDiv.appendChild(innerDiv);
-        } else {
-          reviewIndex = currentReviewsCount;
-          waitReviewDivs = setTimeout(addReviewsLabel, 500);
+        // 若有舊的label，移除舊的label
+        if (document.getElementById("add-div-" + reviewIndex.toString())) {
+          document.getElementById("add-div-" + reviewIndex.toString()).remove();
+          console.log("removeDiv");
         }
-
-        if (
-          reviewIndex == currentReviewsCount - 1 &&
-          document.getElementById("add-div-" + reviewIndex.toString())
-        ) {
-          lastCurrentReviewsCount = currentReviewsCount;
-          reviewsDivFlag = true;
-          targetDiv = undefined;
-          if (!callReciewsDivFlag && reviewsAPIsArr.length == 1) {
-            getReviewsArr();
-          }
-
-          callReciewsDivFlag = false;
-        }
+        // 加入初始化的label
+        labelParentDiv.appendChild(labelDiv);
+      } else {
+        // 跳脫迴圈
+        reviewIndex = newLoadReviewsCount;
+        waitAddReviewsLabel = setTimeout(addReviewsLabel, 500);
       }
-    } else {
-      waitReviewDivs = setTimeout(addReviewsLabel, 500);
+
+      // 若迴圈跑完 且 此次載入的評論都加入初始化的label
+      if (
+        reviewIndex == newLoadReviewsCount - 1 &&
+        document.getElementById("add-div-" + reviewIndex.toString())
+      ) {
+        // 將目前載入的頁面總評論數存成上次載入的頁面總評論數
+        oldLoadReviewsCount = newLoadReviewsCount;
+      }
     }
   } else {
-    waitReviewDivs = setTimeout(addReviewsLabel, 500);
+    waitAddReviewsLabel = setTimeout(addReviewsLabel, 500);
   }
 }
 
 // ---------------------------------------------------------------------------------取得近一年的時間密度
 
-// 取得最新的評論時間
+// 取得一年內各月份評論比重
 function getMonthRate() {
   // 初始化-------------------------------
   starMean = 0;
@@ -241,13 +259,15 @@ function getMonthRate() {
   monthRateArr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   // 初始化-------------------------------
 
-  let reviewsDecimal = 0;
-  let APIReturnCount = 0;
-  let timeCount = 0;
+  let reviewsDecimal = 0; // 商家總評論10個1數
+  let APIReturnCount = 0; // 回傳的API數量
+  let inOneYearCount = 0; // 一年內的評論數
 
+  // 取得商家平均評分
   starMean = parseFloat(
     document.getElementsByClassName("jANrlb")[0].children[0].innerHTML
   );
+  // 商家總評論數
   allReviewsCount = parseInt(
     document
       .getElementsByClassName("jANrlb")[0]
@@ -258,19 +278,23 @@ function getMonthRate() {
     "starMean: " + starMean + ", allReviewsCount: " + allReviewsCount
   );
 
+  // 若商家總評論數大於2000時，僅取前2000筆
   if (allReviewsCount > 2000) {
     console.log("太多評論了！");
     reviewsDecimal = 200;
+    // 商家總評論數10個1數有餘數，則將商家總評論數10個1數加1
   } else if (allReviewsCount % 10 > 0) {
     reviewsDecimal = parseInt(allReviewsCount / 10) + 1;
   } else {
     reviewsDecimal = parseInt(allReviewsCount / 10);
   }
 
+  // 每秒印newsgeting...，代表還沒取完所有最新評論
   console.log("newsgeting...");
   const newsgeting = setInterval(() => console.log("newsgeting..."), 1000);
 
   for (i = 0; i < reviewsDecimal; i++) {
+    // 依序取得最新排序的reviewsAPI
     const otherNewsReviewsAPI =
       newsReviewsAPI.substring(
         0,
@@ -290,13 +314,14 @@ function getMonthRate() {
         newsReviewsAPI.length
       );
 
-    // console.log("otherNewsReviewsAPI: " + otherNewsReviewsAPI); // 後續載入的API
+    // console.log("otherNewsReviewsAPI: " + otherNewsReviewsAPI);
 
+    // 依序取得最新排序的評論
     fetch(otherNewsReviewsAPI + "&extension")
       .then(function (response) {
-        chrome.runtime.sendMessage({ type: "getReviewsAPI" });
         return response.text();
       })
+      // 取得錯誤時，取消每秒印newsgeting...
       .catch((error) => {
         clearInterval(newsgeting);
         errorFlag = true;
@@ -304,46 +329,51 @@ function getMonthRate() {
         console.log("newsget error");
         console.error("error: " + error);
 
+        // 初始化
         starMean = 0;
         allReviewsCount = 0;
         monthRateArr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-
-        // getMonthRate();
       })
       .then(function (requests_result) {
+        // 確認fetch沒錯
         if (!errorFlag) {
+          // 清理回傳資料，並轉成json格式
           const pretext = ")]}'";
           const text = requests_result.replace(pretext, "");
           const soup = JSON.parse(text);
 
+          // 取得所有評論
           if (soup[2]) {
             for (j = 0; j < soup[2].length; j++) {
+              // 若該評論時間沒有年，表示為1年內的評論
               if (soup[2][j][1].indexOf("年") < 0) {
-                timeCount++;
+                inOneYearCount++;
+                // 若該評論時間沒有月，表示為1個月內的評論
                 if (soup[2][j][1].indexOf("月") < 0) {
                   monthRateArr[0]++;
                 } else {
+                  // 取得該評論時間的月份，並加到monthRateArr該月份中
                   monthRateArr[parseInt(soup[2][j][1].slice(0, -4))]++;
                 }
               }
             }
           }
 
+          // 若回傳的API數量等於商家總評論數10個1數減1，代表的迴圈跑完，取消每秒印newsgeting...
           if (APIReturnCount == reviewsDecimal - 1) {
             clearInterval(newsgeting);
             console.log("newsget complete");
+
+            // 初始化最新排序的reviewsAPI
             newsReviewsAPI = "";
 
-            reviewsDecimal = 0;
-            APIReturnCount = 0;
-
+            // 將每月的評論數除以總數，算出一年內各月份評論比重
             for (i = 0; i < monthRateArr.length; i++) {
-              monthRateArr[i] = (monthRateArr[i] / timeCount).toFixed(2);
+              monthRateArr[i] = (monthRateArr[i] / inOneYearCount).toFixed(2);
             }
-            console.log(monthRateArr); // 前2000筆的評論時
-
-            timeCount = 0;
+            console.log(monthRateArr);
           } else {
+            // 回傳的API數量加1
             APIReturnCount++;
           }
         }
@@ -351,58 +381,21 @@ function getMonthRate() {
   }
 }
 
-// // 監聽評論Div的變化
-// function createReviewsObserver() {
-//   const targetNode =
-//     document.getElementsByClassName("section-scrollbox")[0].children[
-//       document.getElementsByClassName("section-scrollbox")[0].children.length -
-//         2
-//     ];
-
-//   const config = { childList: true };
-
-//   // Callback function to execute when mutations are observed
-//   const callback = function (mutationsList, observer) {
-//     // Use traditional 'for loops' for IE 11
-//     for (const mutation of mutationsList) {
-//       if (
-//         mutation.type === "childList" &&
-//         mutation.target.children.length != currentReviewsCount * 3 - 1
-//       ) {
-//         // 初始化-------------------------------
-//         color = "#c7c7cc";
-//         reliability = "評估中...";
-//         // 初始化-------------------------------
-//         currentReviewsCount = (mutation.target.children.length + 1) / 3;
-//         addReviewsLabel();
-//       }
-//     }
-//   };
-
-//   // Create an observer instance linked to the callback function
-//   const observer = new MutationObserver(callback);
-
-//   // Start observing the target node for configured mutations
-//   observer.observe(targetNode, config);
-
-//   // Later, you can stop observing
-//   // observer.disconnect();
-// }
-
 // ---------------------------------------------------------------------------------predict顯示
 
-// 取得評論內容
-function getReviewsArr() {
+// 取得等待預測可靠度的評論
+function getallReviewsArr() {
   // 初始化-------------------------------
-  currentReviewsPosition = -1;
+  reviewsFirstIndex = -1;
   reviewsAPI = "";
-  reviewsArr = [];
+  featuresArr = [];
   reliabilityArr = [];
   // 初始化-------------------------------
 
+  // 取得等待預測可靠度的reviewsAPI
   reviewsAPI = reviewsAPIsArr[0];
-
-  currentReviewsPosition = parseInt(
+  // 取得預測可靠度reviewsAPI的開始index
+  reviewsFirstIndex = parseInt(
     reviewsAPI.substring(
       reviewsAPI.indexOf("!2m2!") +
         reviewsAPI.slice(reviewsAPI.indexOf("!2m2!") + 4).indexOf("!") +
@@ -414,123 +407,170 @@ function getReviewsArr() {
   );
 
   console.log("reviewsAPI: " + reviewsAPI);
-  console.log("currentReviewsPosition: " + currentReviewsPosition);
+  console.log("reviewsFirstIndex: " + reviewsFirstIndex);
   console.log(reviewsAPIsArr);
 
-  if (!(reviewsPosition == 0 && reviewsPosition != currentReviewsPosition)) {
+  // 若目前回傳reviewsAPI的開始index為0 且 預測可靠度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
+  if (
+    !(
+      currentReviewsFirstIndex == 0 &&
+      currentReviewsFirstIndex != reviewsFirstIndex
+    )
+  ) {
+    // 每秒印currentgeting...，代表還沒取得預測可靠度的評論
     console.log("currentgeting...");
     const currentgeting = setInterval(
       () => console.log("currentgeting..."),
       1000
     );
 
+    // 取得預測可靠度的評論
     fetch(reviewsAPI + "&extension")
       .then(function (response) {
-        chrome.runtime.sendMessage({ type: "getReviewsAPI" });
         return response.text();
       })
+      // 取得錯誤時，取消每秒印currentgeting...
       .catch((error) => {
         clearInterval(currentgeting);
         errorFlag = true;
-        showReliability();
+        // 可靠度labels顯示
+        addReliability();
 
         console.log("currentget error");
         console.error("error: " + error);
 
-        // getReviewsArr();
+        // 初始化
+        reviewsFirstIndex = -1;
+        reviewsAPI = "";
+        featuresArr = [];
+        reliabilityArr = [];
       })
       .then(function (requests_result) {
+        // 取消每秒印currentgeting...
         clearInterval(currentgeting);
         console.log("currentget complete");
+
+        // 若目前回傳reviewsAPI的開始index為0 且 預測可靠度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
         if (
-          !(reviewsPosition == 0 && reviewsPosition != currentReviewsPosition)
+          !(
+            currentReviewsFirstIndex == 0 &&
+            currentReviewsFirstIndex != reviewsFirstIndex
+          )
         ) {
+          // 清理回傳資料，並轉成json格式
           const pretext = ")]}'";
           const text = requests_result.replace(pretext, "");
           const soup = JSON.parse(text);
 
+          // 取得預測可靠度的評論特徵內容
           if (soup[2]) {
-            getUsefulData(soup[2]);
+            getFeaturesArr(soup[2]);
           }
         }
       });
   }
 }
 
-function getUsefulData(oriArr) {
+// 取得預測可靠度的評論特徵內容
+function getFeaturesArr(allReviewsArr) {
+  // 取消等待取得一年內各月份評論比重
   clearTimeout(waitMonthRateArr);
 
-  if (!(reviewsPosition == 0 && reviewsPosition != currentReviewsPosition)) {
-    if (typeof monthRateArr[0] == "string") {
-      for (j = 0; j < oriArr.length; j++) {
-        reviewsArr.push(dataProcessing(oriArr[j]));
+  // 若目前回傳reviewsAPI的開始index為0 且 預測可靠度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
+  if (
+    !(
+      currentReviewsFirstIndex == 0 &&
+      currentReviewsFirstIndex != reviewsFirstIndex
+    )
+  ) {
+    // 取得錯誤時，可靠度labels顯示
+    if (errorFlag) {
+      addReliability();
+    }
+    // 若monthRateArr[0]為字串，代表已取得一年內各月份評論比重
+    else if (typeof monthRateArr[0] == "string") {
+      for (j = 0; j < allReviewsArr.length; j++) {
+        // 將處理過的評論特徵內容加入featuresArr
+        featuresArr.push(featuresProcessing(allReviewsArr[j]));
 
-        if (reviewsArr.length == oriArr.length) {
-          console.log(reviewsArr); //目前的評論內容
+        // 若featuresArr長度與預測可靠度的評論長度相同，代表迴圈跑完
+        if (featuresArr.length == allReviewsArr.length) {
+          // 模型預測可靠度
           modelPredict();
-          reviewsAPIsArr.shift();
+          console.log(featuresArr);
         }
       }
-    } else if (errorFlag) {
-      showReliability();
     } else {
-      waitMonthRateArr = setTimeout(getUsefulData, 500, oriArr);
+      waitMonthRateArr = setTimeout(getFeaturesArr, 500, allReviewsArr);
     }
   }
 }
 
-// 目前評論資料特徵處理
-function dataProcessing(soupArr) {
-  if (!(reviewsPosition == 0 && reviewsPosition != currentReviewsPosition)) {
-    if (soupArr[1].indexOf("年") < 0) {
+// 預測可靠度的評論資料特徵處理
+function featuresProcessing(reviewsArr) {
+  // 若目前回傳reviewsAPI的開始index為0 且 預測可靠度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
+  if (
+    !(
+      currentReviewsFirstIndex == 0 &&
+      currentReviewsFirstIndex != reviewsFirstIndex
+    )
+  ) {
+    // 若該評論時間沒有年，表示為1年內的評論
+    if (reviewsArr[1].indexOf("年") < 0) {
+      // 初始化特徵-------------------------------
+      let content = "";
       let content_length = 0;
       let photos_count = 0;
-      let content = "";
       let month_rate = 0;
       let reply = false;
       let reviewer_rank = 0;
 
-      const star_gap = Math.abs(parseInt(soupArr[4]) * 10 - starMean * 10) / 10;
-      const like_count = soupArr[16];
-      // const reviewer_count = soupArr[12][1][1]
+      // 評分間距為評論評分與平均評分的標準差
+      const star_gap =
+        Math.abs(parseInt(reviewsArr[4]) * 10 - starMean * 10) / 10;
+      const like_count = reviewsArr[16];
+      // const reviewer_count = reviewsArr[12][1][1]
+      // 初始化特徵-------------------------------
 
-      if (soupArr[3]) {
+      if (reviewsArr[3]) {
+        // 若有google翻譯，只取翻譯文字內容
         if (
-          soupArr[3].indexOf("(由 Google 提供翻譯)") == 0 &&
-          soupArr[3].indexOf("(原始評論)") > 0
+          reviewsArr[3].indexOf("(由 Google 提供翻譯)") == 0 &&
+          reviewsArr[3].indexOf("(原始評論)") > 0
         ) {
-          content_length = soupArr[3].length;
-          content = soupArr[3].substring(
+          content_length = reviewsArr[3].length;
+          content = reviewsArr[3].substring(
             16,
-            soupArr[3].indexOf("(原始評論)") - 2
+            reviewsArr[3].indexOf("(原始評論)") - 2
           );
         } else {
-          content = soupArr[3];
+          content = reviewsArr[3];
         }
-
+        // 取得評論文字長度
         content_length = content.length;
       }
-
-      if (Array.isArray(soupArr[14])) {
-        photos_count = soupArr[14].length;
+      // 取得評論照片數量
+      if (Array.isArray(reviewsArr[14])) {
+        photos_count = reviewsArr[14].length;
       }
-
-      if (soupArr[1].indexOf("月") < 0) {
+      // 若該評論時間沒有月，表示為1個月內的評論，取得當月比重
+      if (reviewsArr[1].indexOf("月") < 0) {
         month_rate = parseFloat(monthRateArr[0]);
       } else {
         month_rate = parseFloat(
-          monthRateArr[parseInt(soupArr[1].slice(0, -4))]
+          monthRateArr[parseInt(reviewsArr[1].slice(0, -4))]
         );
       }
-
-      if (soupArr[9]) {
+      // 確認是否有商家回復
+      if (reviewsArr[9]) {
         reply = true;
       }
-
-      if (soupArr[12][1][0]) {
-        reviewer_rank = soupArr[12][1][0][0];
+      // 取得評論者在地嚮導等級
+      if (reviewsArr[12][1][0]) {
+        reviewer_rank = reviewsArr[12][1][0][0];
       }
 
+      // 回傳評論特徵資料
       return [
         content_length,
         photos_count,
@@ -542,6 +582,7 @@ function dataProcessing(soupArr) {
         reviewer_rank,
       ];
     } else {
+      // 若評論為一年以上，回傳空陣列
       return [];
     }
   } else {
@@ -549,40 +590,52 @@ function dataProcessing(soupArr) {
   }
 }
 
-// 回傳模型預測可靠度
+// 模型預測可靠度
 function modelPredict() {
-  if (!(reviewsPosition == 0 && reviewsPosition != currentReviewsPosition)) {
+  // 若目前回傳reviewsAPI的開始index為0 且 預測可靠度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
+  if (
+    !(
+      currentReviewsFirstIndex == 0 &&
+      currentReviewsFirstIndex != reviewsFirstIndex
+    )
+  ) {
     let sendModelArr = [];
     const url = "https://thesis-model-backend.herokuapp.com/predict";
     let data = {};
 
-    for (i = 0; i < reviewsArr.length; i++) {
-      if (reviewsArr[i].length == 0) {
+    // 處理傳給Model的資料格式
+    for (i = 0; i < featuresArr.length; i++) {
+      // 若評論為空陣列，表示評論為1年以上
+      if (featuresArr[i].length == 0) {
         data = {
-          index: currentReviewsPosition + i,
+          // index設為預測可靠度的評論index
+          index: reviewsFirstIndex + i,
         };
       } else {
         data = {
-          index: currentReviewsPosition + i,
-          content_length: reviewsArr[i][0],
-          photos_count: reviewsArr[i][1],
+          index: reviewsFirstIndex + i,
+          content_length: featuresArr[i][0],
+          photos_count: featuresArr[i][1],
           content_positive: 0.33, //正向情緒
           content_negative: 0.33, //負向情緒
-          star_gap: reviewsArr[i][3],
-          month_rate: reviewsArr[i][4],
-          like_count: reviewsArr[i][5],
-          reply: reviewsArr[i][6],
-          reviewer_rank: reviewsArr[i][7],
+          star_gap: featuresArr[i][3],
+          month_rate: featuresArr[i][4],
+          like_count: featuresArr[i][5],
+          reply: featuresArr[i][6],
+          reviewer_rank: featuresArr[i][7],
         };
       }
 
+      // 儲存資料格式化後的預測可靠度的評論特徵內容
       sendModelArr.push(data);
     }
+    // console.log("sendModelArr: "+sendModelArr); //傳給模型的資料
 
+    // 每秒印predicting...，代表還沒取得評論可靠度回傳結果
     console.log("predicting...");
     const predicting = setInterval(() => console.log("predicting..."), 1000);
 
-    // console.log("sendModelArr: "+sendModelArr); //傳給模型的資料
+    // header設定為json格式傳遞
     fetch(url, {
       method: "POST", // or 'PUT'
       body: JSON.stringify(sendModelArr), // data can be `string` or {object}!
@@ -591,147 +644,137 @@ function modelPredict() {
       }),
     })
       .then((res) => res.json())
+      // 取得錯誤時，取消每秒印predicting...
       .catch((error) => {
         clearInterval(predicting);
         errorFlag = true;
-        showReliability();
+        // 可靠度labels顯示
+        addReliability();
 
         console.log("predict error");
         console.error("Error:", error);
       })
       .then((response) => {
         clearInterval(predicting);
+        // 若目前回傳reviewsAPI的開始index為0 且 預測可靠度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
         if (
-          !(reviewsPosition == 0 && reviewsPosition != currentReviewsPosition)
+          !(
+            currentReviewsFirstIndex == 0 &&
+            currentReviewsFirstIndex != reviewsFirstIndex
+          )
         ) {
           console.log("predict complete");
+          // 取得評論可靠度
           reliabilityArr = response;
-          // for (j = 0; j < response.length; j++) {
-          //   if (reliabilityArr[parseInt(response[j].index)]) {
-          //     reliabilityArr[parseInt(response[j].index)] = response[j];
-          //   } else {
-          //     reliabilityArr.push(response[j]);
-          //   }
-
-          //   if (reliabilityArr.length > parseInt(response[j].index)) {
-          //     reliabilityArr.length = parseInt(response[j].index) + 1;
-          //   }
-          // }
-          console.log(reliabilityArr); //回傳的預測結果
-          showReliability();
+          console.log(reliabilityArr);
+          // 可靠度label顯示
+          addReliability();
         }
       });
   }
 }
 
-// 顯示可靠度標籤
-function showReliability() {
-  clearTimeout(waitAddDivs);
-  if (!(reviewsPosition == 0 && reviewsPosition != currentReviewsPosition)) {
-    let startReviewsCount = 0;
+// 可靠度label顯示
+function addReliability() {
+  // 取消等待可靠度label顯示
+  clearTimeout(waitAddReliability);
+  const reviewsFirstIndex2 = parseInt(reliabilityArr[0].index);
+  // 若目前回傳reviewsAPI的開始index為0 且 預測可靠度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
+  // 且預測可靠度的評論都加入初始化的label
+  if (
+    !(
+      currentReviewsFirstIndex == 0 &&
+      currentReviewsFirstIndex != reviewsFirstIndex2
+    )
+  ) {
+    // 若目前載入的頁面總評論數是整數 且 預測可靠度reviewsAPI的開始index加上評論可靠度數量小於等於目前載入的頁面總評論數
+    // 代表要預測可靠度的評論已載入畫面
     if (
-      Number.isInteger(currentReviewsCount) &&
-      reviewsDivFlag &&
-      reliabilityArr &&
-      reliabilityArr[0] &&
-      reliabilityArr[0].index
+      Number.isInteger(newLoadReviewsCount) &&
+      reviewsFirstIndex2 + reliabilityArr.length <= newLoadReviewsCount &&
+      document.getElementById(
+        "add-div-" + (reviewsFirstIndex2 + reliabilityArr.length - 1).toString()
+      )
     ) {
-      const reviewsPosition2 = parseInt(reliabilityArr[0].index);
+      // 完成初始化label顯示
+      callReviewsLabelShowFlag = false;
+
+      // 若fetch沒錯，將預測的可靠度加入label
       if (!errorFlag) {
-        console.log(reviewsPosition2);
-        console.log(reliabilityArr.length);
-        console.log(currentReviewsCount);
-        console.log(reliabilityArr);
-        if (reviewsPosition2 + reliabilityArr.length <= currentReviewsCount) {
-          for (
-            reviewIndex = reviewsPosition2;
-            reviewIndex < reviewsPosition2 + reliabilityArr.length;
-            reviewIndex++
+        for (
+          reviewIndex = reviewsFirstIndex2;
+          reviewIndex < reviewsFirstIndex2 + reliabilityArr.length;
+          reviewIndex++
+        ) {
+          const labelDiv = document.getElementById(
+            "add-div-" + reviewIndex.toString()
+          );
+
+          switch (
+            parseInt(reliabilityArr[reviewIndex - reviewsFirstIndex2].predict)
           ) {
-            if (document.getElementById("add-div-" + reviewIndex.toString())) {
-              const targetReview = document.getElementById(
-                "add-div-" + reviewIndex.toString()
-              );
+            case -1:
+              color = "#636366";
+              reliability = "一年前的資料";
+              break;
+            case 1:
+              color = "#ffcc00";
+              reliability = "不可靠";
+              break;
+            case 0:
+              color = "#ff9500";
+              reliability = "中立";
+              break;
+            case 2:
+              color = "#00c7be";
+              reliability = "可靠";
+              break;
+            // case 5:
+            //   color = "#34c759";
+            //   reliability = "非常可靠";
+            //   break;
+            default:
+              break;
+          }
 
-              switch (
-                parseInt(reliabilityArr[reviewIndex - reviewsPosition2].predict)
-              ) {
-                case -1:
-                  color = "#636366";
-                  reliability = "一年前的資料";
-                  break;
-                case 1:
-                  color = "#ffcc00";
-                  reliability = "不可靠";
-                  break;
-                case 0:
-                  color = "#ff9500";
-                  reliability = "中立";
-                  break;
-                case 2:
-                  color = "#00c7be";
-                  reliability = "可靠";
-                  break;
-                // case 5:
-                //   color = "#34c759";
-                //   reliability = "非常可靠";
-                //   break;
-                default:
-                  break;
-              }
+          labelDiv.textContent = reliability;
+          labelDiv.style.backgroundColor = color;
 
-              targetReview.textContent = reliability;
-              targetReview.style.backgroundColor = color;
-            } else {
-              reviewIndex = reliabilityArr.length;
-              // reviewsDivShow()
-              waitAddDivs = setTimeout(showReliability, 500);
-            }
+          if (reviewIndex == reviewsFirstIndex2 + reliabilityArr.length - 1) {
+            // 將等待預測可靠度中最前面的reviewsAPI移除（也就是目前預測的reviewsAPI）
+            reviewsAPIsArr.shift();
 
-            if (reviewIndex == reliabilityArr.length - 1) {
-              // reliabilityArr = [];
-
-              reviewsAPIsArr.shift();
-              if (reviewsDivFlag && reviewsAPIsArr.length > 0) {
-                getReviewsArr();
-              }
+            // 若等待預測可靠度的reviewsAPI不為0
+            if (reviewsAPIsArr.length > 0) {
+              // 取得等待的評論
+              getallReviewsArr();
             }
           }
-        } else {
-          console.log("div還沒更新");
-          callReciewsDivFlag = true;
-          reviewsDivShow();
-          waitAddDivs = setTimeout(showReliability, 500);
         }
+        // 若fetch有錯，將所有label設為評估失敗
       } else {
         color = "#ff3a30";
         reliability = "評估失敗";
 
         for (
           reviewIndex = 0;
-          reviewIndex < currentReviewsCount;
+          reviewIndex < newLoadReviewsCount;
           reviewIndex++
         ) {
-          if (document.getElementById("add-div-" + reviewIndex.toString())) {
-            const targetReview = document.getElementById(
-              "add-div-" + reviewIndex.toString()
-            );
-
-            targetReview.textContent = reliability;
-            targetReview.style.backgroundColor = color;
-          } else {
-            reviewIndex = currentReviewsCount;
-            // reviewsDivShow()
-            waitAddDivs = setTimeout(showReliability, 500);
-          }
-
-          // if (reviewIndex == currentReviewsCount - 1) {
-          //   reliabilityArr = [];
-          // }
+          const labelDiv = document.getElementById(
+            "add-div-" + reviewIndex.toString()
+          );
+          labelDiv.textContent = reliability;
+          labelDiv.style.backgroundColor = color;
         }
       }
+      // 要求初始化label顯示
     } else {
-      waitAddDivs = setTimeout(showReliability, 500);
+      console.log("要求初始化label顯示");
+      callReviewsLabelShowFlag = true;
+      // 取得targetDiv
+      targetDivShow();
+      waitAddReliability = setTimeout(addReliability, 500);
     }
   }
 }
