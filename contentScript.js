@@ -1,11 +1,13 @@
 let errorFlag = false;
 
+let reviewsPosition = -1;
 let reviewsAPIsArr = [];
 let oldStoreName = "";
 let newsReviewsAPI = "";
 let lastCurrentReviewsCount = 0;
 let currentReviewsCount = 0;
 
+let reviewsDivFlag = false;
 let targetDiv = undefined;
 let color = "#c7c7cc";
 let reliability = "評估中...";
@@ -15,8 +17,11 @@ let allReviewsCount = 0;
 let monthRateArr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 let reviewsAPI = "";
+let currentReviewsPosition = -1;
 let reviewsArr = [];
 let reliabilityArr = [];
+
+let callReciewsDivFlag = false;
 // -------------------------------------------------------------
 let waitReviewsDiv;
 let waitReviewDivs;
@@ -25,48 +30,72 @@ let waitAddDivs;
 
 // 監聽評論API
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
-  if (oldStoreName != message.storeName) {
-    // 初始化-------------------------------
+  reviewsPosition = parseInt(
+    message.reviewsAPI.substring(
+      message.reviewsAPI.indexOf("!2m2!") +
+        message.reviewsAPI
+          .slice(message.reviewsAPI.indexOf("!2m2!") + 4)
+          .indexOf("!") +
+        7,
+      message.reviewsAPI.indexOf("!2m2!") +
+        message.reviewsAPI
+          .slice(message.reviewsAPI.indexOf("!2m2!") + 5)
+          .indexOf("!") +
+        5
+    )
+  );
+
+  if (reviewsPosition == 0) {
+    clearTimeout(waitReviewsDiv);
+    clearTimeout(waitReviewDivs);
+    clearTimeout(waitMonthRateArr);
+    clearTimeout(waitAddDivs);
+
     reviewsAPIsArr = [];
+    reviewsAPIsArr.push(message.reviewsAPI);
+    if (oldStoreName != message.storeName) {
+      // console.log("oldStoreName: " + oldStoreName);
+      // console.log("storeName: " + message.storeName);
+      oldStoreName = message.storeName;
+      sendResponse({ farewell: "goodbye" });
 
-    // console.log("oldStoreName: " + oldStoreName);
-    // console.log("storeName: " + message.storeName);
+      newsReviewsAPI =
+        reviewsAPIsArr[0].substring(
+          0,
+          reviewsAPIsArr[0].indexOf("!2m2!") +
+            reviewsAPIsArr[0]
+              .slice(reviewsAPIsArr[0].indexOf("!2m2!") + 4)
+              .indexOf("!") +
+            16
+        ) +
+        "2" +
+        reviewsAPIsArr[0].substring(
+          reviewsAPIsArr[0].indexOf("!2m2!") +
+            reviewsAPIsArr[0]
+              .slice(reviewsAPIsArr[0].indexOf("!2m2!") + 5)
+              .indexOf("!") +
+            14,
+          reviewsAPIsArr[0].length
+        );
 
-    oldStoreName = message.storeName;
-    newsReviewsAPI =
-      message.reviewsAPI.substring(
-        0,
-        message.reviewsAPI.indexOf("!2m2!") +
-          message.reviewsAPI
-            .slice(message.reviewsAPI.indexOf("!2m2!") + 4)
-            .indexOf("!") +
-          16
-      ) +
-      "2" +
-      message.reviewsAPI.substring(
-        message.reviewsAPI.indexOf("!2m2!") +
-          message.reviewsAPI
-            .slice(message.reviewsAPI.indexOf("!2m2!") + 5)
-            .indexOf("!") +
-          14,
-        message.reviewsAPI.length
-      );
+      lastCurrentReviewsCount = 0;
+      currentReviewsCount = 0;
 
-    lastCurrentReviewsCount = 0;
-    currentReviewsCount = 0;
-    // 初始化-------------------------------
-
-    // console.log("newsReviewsAPI: " + newsReviewsAPI);
+      // console.log("newsReviewsAPI: " + newsReviewsAPI);
+    } else {
+      sendResponse({ farewell: "goodbye" });
+    }
+  } else {
+    reviewsAPIsArr.push(message.reviewsAPI);
+    sendResponse({ farewell: "goodbye" });
   }
 
-  reviewsAPIsArr.push(message.reviewsAPI);
   console.log(reviewsAPIsArr);
 
   reviewsDivShow();
-  if (reviewsAPIsArr.length == 1) {
-    getReviewsArr();
-  }
-  sendResponse({ farewell: "goodbye" });
+  // if (reviewsAPIsArr.length == 1) {
+  //   getReviewsArr();
+  // }
 });
 
 // ---------------------------------------------------------------------------------label顯示
@@ -75,6 +104,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
 function reviewsDivShow() {
   clearTimeout(waitReviewsDiv);
   // 初始化-------------------------------
+  reviewsDivFlag = false;
   targetDiv = undefined;
   color = "#c7c7cc";
   reliability = "評估中...";
@@ -102,9 +132,11 @@ function reviewsDivShow() {
       targetDiv.children.length > 1 &&
       targetDiv.children[0].getAttribute("data-review-id")
     ) {
+      // currentReviewsCount = (targetDiv.children.length + 1) / 3;
       addReviewsLabel();
 
       if (newsReviewsAPI != "") {
+        // createReviewsObserver();
         getMonthRate();
       }
     } else {
@@ -182,8 +214,13 @@ function addReviewsLabel() {
           document.getElementById("add-div-" + reviewIndex.toString())
         ) {
           lastCurrentReviewsCount = currentReviewsCount;
+          reviewsDivFlag = true;
           targetDiv = undefined;
-          // getReviewsArr();
+          if (!callReciewsDivFlag && reviewsAPIsArr.length == 1) {
+            getReviewsArr();
+          }
+
+          callReciewsDivFlag = false;
         }
       }
     } else {
@@ -314,232 +351,365 @@ function getMonthRate() {
   }
 }
 
+// // 監聽評論Div的變化
+// function createReviewsObserver() {
+//   const targetNode =
+//     document.getElementsByClassName("section-scrollbox")[0].children[
+//       document.getElementsByClassName("section-scrollbox")[0].children.length -
+//         2
+//     ];
+
+//   const config = { childList: true };
+
+//   // Callback function to execute when mutations are observed
+//   const callback = function (mutationsList, observer) {
+//     // Use traditional 'for loops' for IE 11
+//     for (const mutation of mutationsList) {
+//       if (
+//         mutation.type === "childList" &&
+//         mutation.target.children.length != currentReviewsCount * 3 - 1
+//       ) {
+//         // 初始化-------------------------------
+//         color = "#c7c7cc";
+//         reliability = "評估中...";
+//         // 初始化-------------------------------
+//         currentReviewsCount = (mutation.target.children.length + 1) / 3;
+//         addReviewsLabel();
+//       }
+//     }
+//   };
+
+//   // Create an observer instance linked to the callback function
+//   const observer = new MutationObserver(callback);
+
+//   // Start observing the target node for configured mutations
+//   observer.observe(targetNode, config);
+
+//   // Later, you can stop observing
+//   // observer.disconnect();
+// }
+
 // ---------------------------------------------------------------------------------predict顯示
 
 // 取得評論內容
 function getReviewsArr() {
   // 初始化-------------------------------
+  currentReviewsPosition = -1;
   reviewsAPI = "";
   reviewsArr = [];
   reliabilityArr = [];
   // 初始化-------------------------------
 
   reviewsAPI = reviewsAPIsArr[0];
-  console.log("reviewsAPI: " + reviewsAPI);
-  console.log(reviewsAPIsArr);
 
-  console.log("currentgeting...");
-  const currentgeting = setInterval(
-    () => console.log("currentgeting..."),
-    1000
+  currentReviewsPosition = parseInt(
+    reviewsAPI.substring(
+      reviewsAPI.indexOf("!2m2!") +
+        reviewsAPI.slice(reviewsAPI.indexOf("!2m2!") + 4).indexOf("!") +
+        7,
+      reviewsAPI.indexOf("!2m2!") +
+        reviewsAPI.slice(reviewsAPI.indexOf("!2m2!") + 5).indexOf("!") +
+        5
+    )
   );
 
-  fetch(reviewsAPI + "&extension")
-    .then(function (response) {
-      chrome.runtime.sendMessage({ type: "getReviewsAPI" });
-      return response.text();
-    })
-    .catch((error) => {
-      clearInterval(currentgeting);
-      errorFlag = true;
-      showReliability();
+  console.log("reviewsAPI: " + reviewsAPI);
+  console.log("currentReviewsPosition: " + currentReviewsPosition);
+  console.log(reviewsAPIsArr);
 
-      console.log("currentget error");
-      console.error("error: " + error);
-      reviewsAPI = "";
-      reviewsArr = [];
+  if (!(reviewsPosition == 0 && reviewsPosition != currentReviewsPosition)) {
+    console.log("currentgeting...");
+    const currentgeting = setInterval(
+      () => console.log("currentgeting..."),
+      1000
+    );
 
-      // getReviewsArr();
-    })
-    .then(function (requests_result) {
-      const pretext = ")]}'";
-      const text = requests_result.replace(pretext, "");
-      const soup = JSON.parse(text);
+    fetch(reviewsAPI + "&extension")
+      .then(function (response) {
+        chrome.runtime.sendMessage({ type: "getReviewsAPI" });
+        return response.text();
+      })
+      .catch((error) => {
+        clearInterval(currentgeting);
+        errorFlag = true;
+        showReliability();
 
-      if (soup[2]) {
+        console.log("currentget error");
+        console.error("error: " + error);
+
+        // getReviewsArr();
+      })
+      .then(function (requests_result) {
         clearInterval(currentgeting);
         console.log("currentget complete");
-        getUsefulData(soup[2]);
-      }
-    });
+        if (
+          !(reviewsPosition == 0 && reviewsPosition != currentReviewsPosition)
+        ) {
+          const pretext = ")]}'";
+          const text = requests_result.replace(pretext, "");
+          const soup = JSON.parse(text);
+
+          if (soup[2]) {
+            getUsefulData(soup[2]);
+          }
+        }
+      });
+  }
 }
 
 function getUsefulData(oriArr) {
   clearTimeout(waitMonthRateArr);
 
-  if (typeof monthRateArr[0] == "string") {
-    for (j = 0; j < oriArr.length; j++) {
-      reviewsArr.push(dataProcessing(oriArr[j]));
+  if (!(reviewsPosition == 0 && reviewsPosition != currentReviewsPosition)) {
+    if (typeof monthRateArr[0] == "string") {
+      for (j = 0; j < oriArr.length; j++) {
+        reviewsArr.push(dataProcessing(oriArr[j]));
 
-      if (reviewsArr.length == oriArr.length) {
-        console.log(reviewsArr); //目前的評論內容
-        modelPredict();
-        reviewsAPIsArr.shift();
+        if (reviewsArr.length == oriArr.length) {
+          console.log(reviewsArr); //目前的評論內容
+          modelPredict();
+          reviewsAPIsArr.shift();
+        }
       }
+    } else if (errorFlag) {
+      showReliability();
+    } else {
+      waitMonthRateArr = setTimeout(getUsefulData, 500, oriArr);
     }
-  } else if (errorFlag) {
-    showReliability();
-  } else {
-    waitMonthRateArr = setTimeout(getUsefulData, 500, oriArr);
   }
 }
 
 // 目前評論資料特徵處理
 function dataProcessing(soupArr) {
-  if (soupArr[1].indexOf("年") < 0) {
-    let content_length = 0;
-    let photos_count = 0;
-    let content = "";
-    let month_rate = 0;
-    let reply = false;
-    let reviewer_rank = 0;
+  if (!(reviewsPosition == 0 && reviewsPosition != currentReviewsPosition)) {
+    if (soupArr[1].indexOf("年") < 0) {
+      let content_length = 0;
+      let photos_count = 0;
+      let content = "";
+      let month_rate = 0;
+      let reply = false;
+      let reviewer_rank = 0;
 
-    const star_gap = Math.abs(parseInt(soupArr[4]) * 10 - starMean * 10) / 10;
-    const like_count = soupArr[16];
-    // const reviewer_count = soupArr[12][1][1]
+      const star_gap = Math.abs(parseInt(soupArr[4]) * 10 - starMean * 10) / 10;
+      const like_count = soupArr[16];
+      // const reviewer_count = soupArr[12][1][1]
 
-    if (soupArr[3]) {
-      if (
-        soupArr[3].indexOf("(由 Google 提供翻譯)") == 0 &&
-        soupArr[3].indexOf("(原始評論)") > 0
-      ) {
-        content_length = soupArr[3].length;
-        content = soupArr[3].substring(
-          16,
-          soupArr[3].indexOf("(原始評論)") - 2
-        );
-      } else {
-        content = soupArr[3];
+      if (soupArr[3]) {
+        if (
+          soupArr[3].indexOf("(由 Google 提供翻譯)") == 0 &&
+          soupArr[3].indexOf("(原始評論)") > 0
+        ) {
+          content_length = soupArr[3].length;
+          content = soupArr[3].substring(
+            16,
+            soupArr[3].indexOf("(原始評論)") - 2
+          );
+        } else {
+          content = soupArr[3];
+        }
+
+        content_length = content.length;
       }
 
-      content_length = content.length;
-    }
+      if (Array.isArray(soupArr[14])) {
+        photos_count = soupArr[14].length;
+      }
 
-    if (Array.isArray(soupArr[14])) {
-      photos_count = soupArr[14].length;
-    }
+      if (soupArr[1].indexOf("月") < 0) {
+        month_rate = parseFloat(monthRateArr[0]);
+      } else {
+        month_rate = parseFloat(
+          monthRateArr[parseInt(soupArr[1].slice(0, -4))]
+        );
+      }
 
-    if (soupArr[1].indexOf("月") < 0) {
-      month_rate = parseFloat(monthRateArr[0]);
+      if (soupArr[9]) {
+        reply = true;
+      }
+
+      if (soupArr[12][1][0]) {
+        reviewer_rank = soupArr[12][1][0][0];
+      }
+
+      return [
+        content_length,
+        photos_count,
+        `"${content}"`,
+        star_gap,
+        month_rate,
+        like_count,
+        reply,
+        reviewer_rank,
+      ];
     } else {
-      month_rate = parseFloat(monthRateArr[parseInt(soupArr[1].slice(0, -4))]);
+      return [];
     }
-
-    if (soupArr[9]) {
-      reply = true;
-    }
-
-    if (soupArr[12][1][0]) {
-      reviewer_rank = soupArr[12][1][0][0];
-    }
-
-    return [
-      content_length,
-      photos_count,
-      `"${content}"`,
-      star_gap,
-      month_rate,
-      like_count,
-      reply,
-      reviewer_rank,
-    ];
   } else {
-    return [];
+    return null;
   }
 }
 
 // 回傳模型預測可靠度
 function modelPredict() {
-  let sendModelArr = [];
-  const url = "https://thesis-model-backend.herokuapp.com/predict";
-  let data = {};
+  if (!(reviewsPosition == 0 && reviewsPosition != currentReviewsPosition)) {
+    let sendModelArr = [];
+    const url = "https://thesis-model-backend.herokuapp.com/predict";
+    let data = {};
 
-  for (i = 0; i < reviewsArr.length; i++) {
-    if (reviewsArr[i].length == 0) {
-      data = {
-        index: i,
-      };
-    } else {
-      data = {
-        index: i,
-        content_length: reviewsArr[i][0],
-        photos_count: reviewsArr[i][1],
-        content_positive: 0.33, //正向情緒
-        content_negative: 0.33, //負向情緒
-        star_gap: reviewsArr[i][3],
-        month_rate: reviewsArr[i][4],
-        like_count: reviewsArr[i][5],
-        reply: reviewsArr[i][6],
-        reviewer_rank: reviewsArr[i][7],
-      };
+    for (i = 0; i < reviewsArr.length; i++) {
+      if (reviewsArr[i].length == 0) {
+        data = {
+          index: currentReviewsPosition + i,
+        };
+      } else {
+        data = {
+          index: currentReviewsPosition + i,
+          content_length: reviewsArr[i][0],
+          photos_count: reviewsArr[i][1],
+          content_positive: 0.33, //正向情緒
+          content_negative: 0.33, //負向情緒
+          star_gap: reviewsArr[i][3],
+          month_rate: reviewsArr[i][4],
+          like_count: reviewsArr[i][5],
+          reply: reviewsArr[i][6],
+          reviewer_rank: reviewsArr[i][7],
+        };
+      }
+
+      sendModelArr.push(data);
     }
 
-    sendModelArr.push(data);
-  }
+    console.log("predicting...");
+    const predicting = setInterval(() => console.log("predicting..."), 1000);
 
-  console.log("predicting...");
-  const predicting = setInterval(() => console.log("predicting..."), 1000);
-
-  // console.log("sendModelArr: "+sendModelArr); //傳給模型的資料
-  fetch(url, {
-    method: "POST", // or 'PUT'
-    body: JSON.stringify(sendModelArr), // data can be `string` or {object}!
-    headers: new Headers({
-      "Content-Type": "application/json",
-    }),
-  })
-    .then((res) => res.json())
-    .catch((error) => {
-      clearInterval(predicting);
-      errorFlag = true;
-      showReliability();
-
-      console.log("predict error");
-      console.error("Error:", error);
+    // console.log("sendModelArr: "+sendModelArr); //傳給模型的資料
+    fetch(url, {
+      method: "POST", // or 'PUT'
+      body: JSON.stringify(sendModelArr), // data can be `string` or {object}!
+      headers: new Headers({
+        "Content-Type": "application/json",
+      }),
     })
-    .then((response) => {
-      clearInterval(predicting);
-      console.log("predict complete");
-      reliabilityArr = response;
-      // for (j = 0; j < response.length; j++) {
-      //   if (reliabilityArr[parseInt(response[j].index)]) {
-      //     reliabilityArr[parseInt(response[j].index)] = response[j];
-      //   } else {
-      //     reliabilityArr.push(response[j]);
-      //   }
+      .then((res) => res.json())
+      .catch((error) => {
+        clearInterval(predicting);
+        errorFlag = true;
+        showReliability();
 
-      //   if (reliabilityArr.length > parseInt(response[j].index)) {
-      //     reliabilityArr.length = parseInt(response[j].index) + 1;
-      //   }
-      // }
-      console.log(reliabilityArr); //回傳的預測結果
-      reviewsArr = [];
-      showReliability();
-    });
+        console.log("predict error");
+        console.error("Error:", error);
+      })
+      .then((response) => {
+        clearInterval(predicting);
+        if (
+          !(reviewsPosition == 0 && reviewsPosition != currentReviewsPosition)
+        ) {
+          console.log("predict complete");
+          reliabilityArr = response;
+          // for (j = 0; j < response.length; j++) {
+          //   if (reliabilityArr[parseInt(response[j].index)]) {
+          //     reliabilityArr[parseInt(response[j].index)] = response[j];
+          //   } else {
+          //     reliabilityArr.push(response[j]);
+          //   }
+
+          //   if (reliabilityArr.length > parseInt(response[j].index)) {
+          //     reliabilityArr.length = parseInt(response[j].index) + 1;
+          //   }
+          // }
+          console.log(reliabilityArr); //回傳的預測結果
+          showReliability();
+        }
+      });
+  }
 }
 
 // 顯示可靠度標籤
 function showReliability() {
-  let startReviewsCount = 0;
   clearTimeout(waitAddDivs);
+  if (!(reviewsPosition == 0 && reviewsPosition != currentReviewsPosition)) {
+    let startReviewsCount = 0;
+    if (
+      Number.isInteger(currentReviewsCount) &&
+      reviewsDivFlag &&
+      reliabilityArr &&
+      reliabilityArr[0] &&
+      reliabilityArr[0].index
+    ) {
+      const reviewsPosition2 = parseInt(reliabilityArr[0].index);
+      if (!errorFlag) {
+        console.log(reviewsPosition2);
+        console.log(reliabilityArr.length);
+        console.log(currentReviewsCount);
+        console.log(reliabilityArr);
+        if (reviewsPosition2 + reliabilityArr.length <= currentReviewsCount) {
+          for (
+            reviewIndex = reviewsPosition2;
+            reviewIndex < reviewsPosition2 + reliabilityArr.length;
+            reviewIndex++
+          ) {
+            if (document.getElementById("add-div-" + reviewIndex.toString())) {
+              const targetReview = document.getElementById(
+                "add-div-" + reviewIndex.toString()
+              );
 
-  if (Number.isInteger(currentReviewsCount)) {
-    if (!errorFlag) {
-      const reviewsPosition = parseInt(
-        reviewsAPI.substring(
-          reviewsAPI.indexOf("!2m2!") +
-            reviewsAPI.slice(reviewsAPI.indexOf("!2m2!") + 4).indexOf("!") +
-            7,
-          reviewsAPI.indexOf("!2m2!") +
-            reviewsAPI.slice(reviewsAPI.indexOf("!2m2!") + 5).indexOf("!") +
-            5
-        )
-      );
+              switch (
+                parseInt(reliabilityArr[reviewIndex - reviewsPosition2].predict)
+              ) {
+                case -1:
+                  color = "#636366";
+                  reliability = "一年前的資料";
+                  break;
+                case 1:
+                  color = "#ffcc00";
+                  reliability = "不可靠";
+                  break;
+                case 0:
+                  color = "#ff9500";
+                  reliability = "中立";
+                  break;
+                case 2:
+                  color = "#00c7be";
+                  reliability = "可靠";
+                  break;
+                // case 5:
+                //   color = "#34c759";
+                //   reliability = "非常可靠";
+                //   break;
+                default:
+                  break;
+              }
 
-      if (reviewsPosition + reliabilityArr.length <= currentReviewsCount) {
+              targetReview.textContent = reliability;
+              targetReview.style.backgroundColor = color;
+            } else {
+              reviewIndex = reliabilityArr.length;
+              // reviewsDivShow()
+              waitAddDivs = setTimeout(showReliability, 500);
+            }
+
+            if (reviewIndex == reliabilityArr.length - 1) {
+              // reliabilityArr = [];
+
+              reviewsAPIsArr.shift();
+              if (reviewsDivFlag && reviewsAPIsArr.length > 0) {
+                getReviewsArr();
+              }
+            }
+          }
+        } else {
+          console.log("div還沒更新");
+          callReciewsDivFlag = true;
+          reviewsDivShow();
+          waitAddDivs = setTimeout(showReliability, 500);
+        }
+      } else {
+        color = "#ff3a30";
+        reliability = "評估失敗";
+
         for (
-          reviewIndex = reviewsPosition;
-          reviewIndex < reviewsPosition + reliabilityArr.length;
+          reviewIndex = 0;
+          reviewIndex < currentReviewsCount;
           reviewIndex++
         ) {
           if (document.getElementById("add-div-" + reviewIndex.toString())) {
@@ -547,81 +717,21 @@ function showReliability() {
               "add-div-" + reviewIndex.toString()
             );
 
-            switch (
-              parseInt(reliabilityArr[reviewIndex - reviewsPosition].predict)
-            ) {
-              case -1:
-                color = "#636366";
-                reliability = "一年前的資料";
-                break;
-              case 1:
-                color = "#ffcc00";
-                reliability = "不可靠";
-                break;
-              case 0:
-                color = "#ff9500";
-                reliability = "中立";
-                break;
-              case 2:
-                color = "#00c7be";
-                reliability = "可靠";
-                break;
-              // case 5:
-              //   color = "#34c759";
-              //   reliability = "非常可靠";
-              //   break;
-              default:
-                break;
-            }
-
             targetReview.textContent = reliability;
             targetReview.style.backgroundColor = color;
           } else {
-            reviewIndex = reliabilityArr.length;
+            reviewIndex = currentReviewsCount;
             // reviewsDivShow()
             waitAddDivs = setTimeout(showReliability, 500);
           }
 
-          if (reviewIndex == reliabilityArr.length - 1) {
-            reviewsAPI = "";
-            reliabilityArr = [];
-          }
-        }
-      } else {
-        console.log("div更新");
-        reviewsAPI = "";
-        reliabilityArr = [];
-
-        reviewsAPIsArr.shift();
-        if (reviewsAPIsArr.length > 0) {
-          getReviewsArr();
+          // if (reviewIndex == currentReviewsCount - 1) {
+          //   reliabilityArr = [];
+          // }
         }
       }
     } else {
-      color = "#ff3a30";
-      reliability = "評估失敗";
-
-      for (reviewIndex = 0; reviewIndex < currentReviewsCount; reviewIndex++) {
-        if (document.getElementById("add-div-" + reviewIndex.toString())) {
-          const targetReview = document.getElementById(
-            "add-div-" + reviewIndex.toString()
-          );
-
-          targetReview.textContent = reliability;
-          targetReview.style.backgroundColor = color;
-        } else {
-          reviewIndex = currentReviewsCount;
-          // reviewsDivShow()
-          waitAddDivs = setTimeout(showReliability, 500);
-        }
-
-        if (reviewIndex == currentReviewsCount - 1) {
-          reviewsAPI = "";
-          reliabilityArr = [];
-        }
-      }
+      waitAddDivs = setTimeout(showReliability, 500);
     }
-  } else {
-    waitAddDivs = setTimeout(showReliability, 500);
   }
 }

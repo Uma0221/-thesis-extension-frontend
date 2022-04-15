@@ -1,9 +1,10 @@
 let reviewsAPI = "";
+let changeFlag = false;
 
 // 網頁url變化
 chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
   if (
-    reviewsAPI != "" &&
+    changeFlag &&
     changeInfo.status === "complete" &&
     (tab.url.startsWith("https://www.google.com/maps/place") ||
       tab.url.startsWith("https://www.google.com.tw/maps/place"))
@@ -18,6 +19,7 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
     const storeName = currentURLFront.slice(0, currentURLFront.indexOf("/"));
 
     if (storeName != "") {
+      console.log(reviewsAPI);
       chrome.tabs.sendMessage(
         tab.id,
         {
@@ -25,7 +27,7 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
           storeName: storeName,
         },
         function (response) {
-          reviewsAPI = "";
+          changeFlag = false;
         }
       );
     }
@@ -43,6 +45,7 @@ chrome.webRequest.onCompleted.addListener(
       !details.url.endsWith("&extension")
     ) {
       reviewsAPI = details.url;
+      changeFlag = true;
       console.log(reviewsAPI);
 
       // chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
