@@ -46,23 +46,33 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
 
   // 若目前回傳reviewsAPI的開始index為0，代表targetDiv內容刷新
   if (currentReviewsFirstIndex == 0) {
+    // 清空預測可靠度的reviewsAPI，加入目前回傳reviewsAPI
+    reviewsAPIsArr = [];
+    reviewsAPIsArr.push(message.reviewsAPI);
+    sendResponse({ farewell: "goodbye" });
+
     // 取消所有等待
     clearTimeout(waitTargetDiv);
     clearTimeout(waitAddReviewsLabel);
     clearTimeout(waitMonthRateArr);
     clearTimeout(waitAddReliability);
 
-    // 清空預測可靠度的reviewsAPI，加入目前回傳reviewsAPI
-    reviewsAPIsArr = [];
-    reviewsAPIsArr.push(message.reviewsAPI);
+    // 取得目前網頁URL的前段
+    let currentURLFront;
+    if (window.location.href.startsWith("https://www.google.com/maps/place")) {
+      currentURLFront = window.location.href.slice(34);
+    } else {
+      currentURLFront = window.location.href.slice(37);
+    }
+    // 取得目前的商家名稱
+    const storeName = currentURLFront.slice(0, currentURLFront.indexOf("/"));
 
     // console.log("oldStoreName: " + oldStoreName);
-    // console.log("storeName: " + message.storeName);
+    // console.log("storeName: " + storeName);
     // 若舊的商家名稱與目前的商家名稱不同，代表目前的商家為新商家
-    if (oldStoreName != message.storeName) {
+    if (oldStoreName != storeName) {
       // 將新的商家名稱存成舊的商家名稱
-      oldStoreName = message.storeName;
-      sendResponse({ farewell: "goodbye" });
+      oldStoreName = storeName;
 
       // 取得新商家最新排序的reviewsAPI
       newsReviewsAPI =
@@ -84,8 +94,6 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
           reviewsAPIsArr[0].length
         );
       // console.log("newsReviewsAPI: " + newsReviewsAPI);
-    } else {
-      sendResponse({ farewell: "goodbye" });
     }
 
     // 將上次載入及目前載入的頁面總評論數初始化

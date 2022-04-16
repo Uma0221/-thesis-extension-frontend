@@ -9,42 +9,14 @@ chrome.webRequest.onCompleted.addListener(
         )) &&
       !details.url.endsWith("&extension")
     ) {
-      // 若網頁url是評論頁面
-      chrome.tabs.query(
-        { active: true, currentWindow: true },
-        function (tabs) {
-          if (
-            tabs[0].url.startsWith("https://www.google.com/maps/place") ||
-            tabs[0].url.startsWith("https://www.google.com.tw/maps/place")
-          ) {
-            // console.log(tabs[0]);
-            // 取得商家名稱
-            let currentURLFront;
-            if (tabs[0].url.startsWith("https://www.google.com/maps/place")) {
-              currentURLFront = tabs[0].url.slice(34);
-            } else {
-              currentURLFront = tabs[0].url.slice(37);
-            }
-            const storeName = currentURLFront.slice(
-              0,
-              currentURLFront.indexOf("/")
-            );
-
-            if (storeName != "") {
-              console.log(details.url);
-              // 傳reviewsAPI跟商家名稱到contentScript
-              chrome.tabs.sendMessage(
-                tabs[0].id,
-                {
-                  reviewsAPI: details.url,
-                  storeName: storeName,
-                },
-                function (response) {
-                  // reviewsAPI = "";
-                }
-              );
-            }
-          }
+      console.log(details);
+      // 傳reviewsAPI到contentScript
+      chrome.tabs.sendMessage(
+        details.tabId,
+        {
+          reviewsAPI: details.url,
+        },
+        function (response) {
         }
       );
     }
