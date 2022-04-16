@@ -1,6 +1,6 @@
 {
-    "name": "Getting Reviews Tool",
-    "description": "Get Google Reviews!",
+    "name": "Reliability Tool",
+    "description": "Predict Google Reviews Reliability!",
     "version": "1.0",
     "manifest_version": 3,
 
@@ -17,6 +17,7 @@
     ],
     
     "permissions": [
+        "scripting",
         "webRequest"
     ],
 
