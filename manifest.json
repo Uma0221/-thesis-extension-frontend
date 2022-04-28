@@ -1,5 +1,5 @@
 {
-    "name": "Getting Reviews Tool",
+    "name": "Get Reviews Tool",
     "description": "Get Google Reviews!",
     "version": "1.0",
     "manifest_version": 3,
@@ -10,24 +10,23 @@
 
     "content_scripts": [
         {
-          "matches": ["https://*/*"],
+          "matches": ["<all_urls>"],
           "run_at": "document_start",
           "js": ["contentScript.js"]
         }
     ],
     
     "permissions": [
-        "activeTab",
-        "tabs",
+        "scripting",
         "webRequest"
     ],
 
     "host_permissions": [
-        "https://www.google.com/maps/*"
+        "https://www.google.com/maps/place/*",
+        "https://www.google.com.tw/maps/place/*"
     ],
 
     "action": {
-        "default_popup": "popup.html",
         "default_icon": {
             "16": "/images/get_started16.png",
             "32": "/images/get_started32.png",
