@@ -24,7 +24,6 @@ let reliabilityArr = []; // 評論可靠度
 let waitTargetDiv; // 等待targetDiv顯示
 let waitAddReviewsLabel; // 等待初始化label顯示
 let waitMonthRateArr; // 等待取得一年內各月份評論比重
-let waitAddReliability; // 等待可靠度label顯示
 
 // 監聽background回傳
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
@@ -55,7 +54,6 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
     clearTimeout(waitTargetDiv);
     clearTimeout(waitAddReviewsLabel);
     clearTimeout(waitMonthRateArr);
-    clearTimeout(waitAddReliability);
 
     // 取得目前網頁URL的前段
     let currentURLFront;
@@ -136,18 +134,17 @@ function targetDivShow() {
     document.getElementsByClassName("iD2gKb")[0] &&
     document.getElementsByClassName("iD2gKb")[0].innerHTML == "所有評論" &&
     // 確認有卷軸
-    document.getElementsByClassName("section-scrollbox")[0] &&
-    document.getElementsByClassName("section-scrollbox")[0].children.length <=
-      10 &&
+    document.getElementsByClassName("DxyBCb")[0] &&
+    document.getElementsByClassName("DxyBCb")[0].children.length > 1 &&
+    document.getElementsByClassName("DxyBCb")[0].children.length <= 10 &&
     // 確認有商家評分資訊
     document.getElementsByClassName("jANrlb")[0] &&
     document.getElementsByClassName("jANrlb")[0].children.length == 4
   ) {
     // 取得所有評論的parent
     targetDiv =
-      document.getElementsByClassName("section-scrollbox")[0].children[
-        document.getElementsByClassName("section-scrollbox")[0].children
-          .length - 2
+      document.getElementsByClassName("DxyBCb")[0].children[
+        document.getElementsByClassName("DxyBCb")[0].children.length - 2
       ];
 
     // 若targetDiv的children有data-review-id的attribute，代表評論已生成
@@ -168,8 +165,9 @@ function targetDivShow() {
     }
   } else if (
     // 跟targetDiv同階層的div數量太多，代表是飯店評論
-    document.getElementsByClassName("section-scrollbox")[0] &&
-    document.getElementsByClassName("section-scrollbox")[0].children.length > 10
+    document.getElementsByClassName("DxyBCb")[0] &&
+    document.getElementsByClassName("DxyBCb")[0].children.length > 1 &&
+    document.getElementsByClassName("DxyBCb")[0].children.length > 10
   ) {
     // 初始化最新排序的reviewsAPI
     newsReviewsAPI = "";
@@ -250,6 +248,11 @@ function addReviewsLabel() {
       ) {
         // 將目前載入的頁面總評論數存成上次載入的頁面總評論數
         oldLoadReviewsCount = newLoadReviewsCount;
+
+        // 若已取得評論可靠度且正在等待，執行可靠度label顯示
+        if (callReviewsLabelShowFlag) {
+          addReliability();
+        }
       }
     }
   } else {
@@ -601,7 +604,7 @@ function featuresProcessing(reviewsArr) {
 // 取得評論內容情緒特徵
 // function getContentSentiment() {
 // var url =
-//   "https://thesis-sentiment-analysis.cognitiveservices.azure.com//text/analytics/v3.0/sentiment";
+//   "https://thesis-sentiment-analysis.cognitiveservices.azure.com/text/analytics/v3.0/sentiment";
 // var data = {
 //   documents: [
 //     {
@@ -712,7 +715,6 @@ function modelPredict() {
 // 可靠度label顯示
 function addReliability() {
   // 取消等待可靠度label顯示
-  clearTimeout(waitAddReliability);
   const reviewsFirstIndex2 = parseInt(reliabilityArr[0].index);
   // 若目前回傳reviewsAPI的開始index為0 且 預測可靠度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
   // 且預測可靠度的評論都加入初始化的label
@@ -809,7 +811,6 @@ function addReliability() {
       callReviewsLabelShowFlag = true;
       // 取得targetDiv
       targetDivShow();
-      waitAddReliability = setTimeout(addReliability, 500);
     }
   }
 }
