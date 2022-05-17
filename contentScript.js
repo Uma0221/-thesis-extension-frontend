@@ -506,8 +506,8 @@ function getFeaturesArr(allReviewsArr) {
 
         // 若featuresArr長度與預測可靠度的評論長度相同，代表迴圈跑完
         if (featuresArr.length == allReviewsArr.length) {
-          // 模型預測可靠度
-          modelPredict();
+          // 預測評論內容情緒
+          getContentSentiment();
           console.log(featuresArr);
         }
       }
@@ -532,10 +532,14 @@ function featuresProcessing(reviewsArr) {
       let content = "";
       let content_length = 0;
       let photos_count = 0;
+      let month = 0;
       let month_rate = 0;
       let reply = false;
       let reviewer_rank = 0;
 
+      const content_positive = 0;
+      const content_negative = 0;
+      const star = parseInt(reviewsArr[4]);
       // 評分間距為評論評分與平均評分的標準差
       const star_gap =
         Math.abs(parseInt(reviewsArr[4]) * 10 - starMean * 10) / 10;
@@ -566,8 +570,10 @@ function featuresProcessing(reviewsArr) {
       }
       // 若該評論時間沒有月，表示為1個月內的評論，取得當月比重
       if (reviewsArr[1].indexOf("月") < 0) {
+        month = 0;
         month_rate = parseFloat(monthRateArr[0]);
       } else {
+        month = parseInt(reviewsArr[1].slice(0, -4));
         month_rate = parseFloat(
           monthRateArr[parseInt(reviewsArr[1].slice(0, -4))]
         );
@@ -586,7 +592,11 @@ function featuresProcessing(reviewsArr) {
         content_length,
         photos_count,
         `"${content}"`,
+        content_positive,
+        content_negative,
+        star,
         star_gap,
+        month,
         month_rate,
         like_count,
         reply,
@@ -602,31 +612,98 @@ function featuresProcessing(reviewsArr) {
 }
 
 // 取得評論內容情緒特徵
-// function getContentSentiment() {
-// var url =
-//   "https://thesis-sentiment-analysis.cognitiveservices.azure.com/text/analytics/v3.0/sentiment";
-// var data = {
-//   documents: [
-//     {
-//       language: "zh-hant",
-//       id: "1",
-//       text: "和朋友導航來到了敲我，我們點了\n\n📍籽籽百香果塔\n草莓點綴於像是雲朵般的百香果鮮奶油上方，內餡百香果原汁原味的籽保留，口感更添滋味溫和順口，塔殼部份酥脆有香氣，讓我吃了不停默默點頭。\n\n📍雙重人格檸檬塔\n檸檬皮刨成絲於最頂端接著檸檬鮮奶油，內餡滿滿檸檬酸酸但爽口香氣四溢，搭配塔殼一起吃層次更是豐富！\n\n📍香橙拿鐵（含酒精 君度橙酒）\n一入口淡淡橙香的味道用咖啡巧妙結合，當然意外順口，咖啡介於不酸不苦之間，這我給過！ 對了～點咖啡或茶品會有小餅乾。\n\n時間的關係沒辦法好好聊天，有機會在一起喝咖啡，然後這間甜點沒有讓人失望，反而感受很用心，但是店家人手不足，來到這兒的各位需要耐心等待。",
-//     },
-//   ],
-// };
+function getContentSentiment() {
+  if (
+    !(
+      currentReviewsFirstIndex == 0 &&
+      currentReviewsFirstIndex != reviewsFirstIndex
+    )
+  ) {
+    let sendAzureArr = [];
+    const azureUrl =
+      "https://thesis-sentiment-analysis.cognitiveservices.azure.com/text/analytics/v3.0/sentiment";
+    let data = {};
+    let idCount = 1;
 
-// fetch(url, {
-//   method: "POST", // or 'PUT'
-//   body: JSON.stringify(data), // data can be `string` or {object}!
-//   headers: new Headers({
-//     "Content-Type": "application/json",
-//     "Ocp-apim-subscription-key": "50d636d9e4844528bd878b47e8c694bd",
-//   }),
-// })
-//   .then((res) => res.json())
-//   .catch((error) => console.error("Error:", error))
-//   .then((response) => console.log("Success:", response));
-// }
+    // 處理傳給Azure的資料格式
+    for (i = 0; i < featuresArr.length; i++) {
+      // 若評論不為空陣列，表示評論為1年內；若評論文字長度大於0，表示有評論內容
+      if (featuresArr[i].length > 0 && featuresArr[i][0] > 0) {
+        data = {
+          language: "zh-hant",
+          id: idCount.toString(),
+          text: featuresArr[i][2],
+        };
+        // 評論內容情緒改為id編號
+        featuresArr[i][3] = idCount;
+        featuresArr[i][4] = idCount;
+        idCount++;
+
+        // 儲存格式化後的評論內容
+        sendAzureArr.push(data);
+      }
+    }
+    // console.log(sendAzureArr); //傳給Azure的資料
+
+    // 每秒印azureing...，代表還沒取得評論內容情緒回傳結果
+    console.log("azureing...");
+    const azureing = setInterval(() => console.log("azureing..."), 1000);
+
+    if (sendAzureArr.length > 0) {
+      // header設定為json格式傳遞
+      fetch(azureUrl, {
+        method: "POST", // or 'PUT'
+        body: JSON.stringify({ documents: sendAzureArr }), // data can be `string` or {object}!
+        headers: new Headers({
+          "Content-Type": "application/json",
+          "Ocp-apim-subscription-key": "50d636d9e4844528bd878b47e8c694bd",
+        }),
+      })
+        .then((res) => res.json())
+        // 取得錯誤時，取消每秒印azureing...
+        .catch((error) => {
+          clearInterval(azureing);
+          errorFlag = true;
+          // 可靠度labels顯示
+          addReliability();
+
+          console.log("azure error");
+          console.error("Error:", error);
+        })
+        .then((response) => {
+          clearInterval(azureing);
+          // 若目前回傳reviewsAPI的開始index為0 且 預測可靠度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
+          if (
+            !(
+              currentReviewsFirstIndex == 0 &&
+              currentReviewsFirstIndex != reviewsFirstIndex
+            )
+          ) {
+            console.log("azure complete");
+            // 取得評論內容情緒
+            console.log(response);
+
+            for (j = 0; j < featuresArr.length; j++) {
+              if (featuresArr[j].length > 0 && featuresArr[j][3] > 0) {
+                featuresArr[j][3] =
+                  response.documents[
+                    featuresArr[j][3] - 1
+                  ].confidenceScores.positive;
+
+                featuresArr[j][4] =
+                  response.documents[
+                    featuresArr[j][4] - 1
+                  ].confidenceScores.negative;
+              } 
+            }
+            console.log(featuresArr);
+            // 模型預測可靠度
+            modelPredict();
+          }
+        });
+    }
+  }
+}
 
 // 模型預測可靠度
 function modelPredict() {
@@ -654,13 +731,13 @@ function modelPredict() {
           index: reviewsFirstIndex + i,
           content_length: featuresArr[i][0],
           photos_count: featuresArr[i][1],
-          content_positive: 0.33, //正向情緒
-          content_negative: 0.33, //負向情緒
-          star_gap: featuresArr[i][3],
-          month_rate: featuresArr[i][4],
-          like_count: featuresArr[i][5],
-          reply: featuresArr[i][6],
-          reviewer_rank: featuresArr[i][7],
+          content_positive: featuresArr[i][3],
+          content_negative: featuresArr[i][4],
+          star: featuresArr[i][5],
+          month: featuresArr[i][7],
+          month_rate: featuresArr[i][8],
+          like_count: featuresArr[i][9],
+          reviewer_rank: featuresArr[i][11],
         };
       }
 
@@ -754,15 +831,21 @@ function addReliability() {
               color = "#636366";
               reliability = "一年前的資料";
               break;
-            case 1:
+              
+            case 2:
               color = "#ffcc00";
               reliability = "不可靠";
               break;
-            case 0:
-              color = "#ff9500";
-              reliability = "中立";
+            case 5:
+              color = "#ffcc00";
+              reliability = "不可靠";
               break;
-            case 2:
+
+            case 3:
+              color = "#00c7be";
+              reliability = "可靠";
+              break;
+            case 7:
               color = "#00c7be";
               reliability = "可靠";
               break;
@@ -771,6 +854,8 @@ function addReliability() {
             //   reliability = "非常可靠";
             //   break;
             default:
+              color = "#ff9500";
+              reliability = "中立";
               break;
           }
 
