@@ -621,7 +621,7 @@ function getContentSentiment() {
   ) {
     let sendAzureArr = [];
     const azureUrl =
-      "https://thesis-sentiment-analysis.cognitiveservices.azure.com/text/analytics/v3.0/sentiment";
+      "https://thesis-sentiment-analysis-2.cognitiveservices.azure.com/text/analytics/v3.0/sentiment";
     let data = {};
     let idCount = 1;
 
@@ -656,7 +656,7 @@ function getContentSentiment() {
         body: JSON.stringify({ documents: sendAzureArr }), // data can be `string` or {object}!
         headers: new Headers({
           "Content-Type": "application/json",
-          "Ocp-apim-subscription-key": "50d636d9e4844528bd878b47e8c694bd",
+          "Ocp-apim-subscription-key": "85dce20ab946498cb5dd09a5ce6553ef",
         }),
       })
         .then((res) => res.json())
@@ -694,13 +694,19 @@ function getContentSentiment() {
                   response.documents[
                     featuresArr[j][4] - 1
                   ].confidenceScores.negative;
-              } 
+              }
             }
             console.log(featuresArr);
             // 模型預測可靠度
             modelPredict();
           }
         });
+    } else {
+      clearInterval(azureing);
+      console.log("azure complete");
+      console.log(featuresArr);
+      // 模型預測可靠度
+      modelPredict();
     }
   }
 }
@@ -831,7 +837,7 @@ function addReliability() {
               color = "#636366";
               reliability = "一年前的資料";
               break;
-              
+
             case 2:
               color = "#ffcc00";
               reliability = "不可靠";
