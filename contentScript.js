@@ -834,7 +834,7 @@ function addReliability() {
             parseInt(reliabilityArr[reviewIndex - reviewsFirstIndex2].predict)
           ) {
             case -1:
-              color = "#636366";
+              color = "#48484A";
               reliability = "一年前的資料";
               break;
 
@@ -879,10 +879,10 @@ function addReliability() {
             }
           }
         }
-        // 若fetch有錯，將所有label設為評估失敗
+        // 若fetch有錯，將所有label設為系統異常
       } else {
         color = "#ff3a30";
-        reliability = "評估失敗";
+        reliability = "系統異常";
 
         for (
           reviewIndex = 0;
