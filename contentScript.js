@@ -1,25 +1,25 @@
 let errorFlag = false; // 判斷fetch時有沒有錯誤
 
 let currentReviewsFirstIndex = -1; // 目前回傳reviewsAPI的開始index
-let reviewsAPIsArr = []; // 等待預測可靠度的reviewsAPI
+let reviewsAPIsArr = []; // 等待預測可信度的reviewsAPI
 let oldStoreName = ""; // 舊的商家名稱
 let newsReviewsAPI = ""; // 最新排序的reviewsAPI
 let oldLoadReviewsCount = 0; // 上次載入的頁面總評論數
 let newLoadReviewsCount = 0; // 目前載入的頁面總評論數
-let callReviewsLabelShowFlag = false; // 判斷取得評論可靠度後，有沒有再次要求初始化label顯示
+let callReviewsLabelShowFlag = false; // 判斷取得評論可信度後，有沒有再次要求初始化label顯示
 
 let targetDiv = undefined; // 所有評論的parent
-let color = "#c7c7cc"; // 初始的可靠度label顏色
-let reliability = "評估中..."; // 初始的可靠度label文字
+let color = "#c7c7cc"; // 初始的可信度label顏色
+let reliability = "評估中..."; // 初始的可信度label文字
 
 let starMean = 0; // 商家平均評分
 let allReviewsCount = 0; // 商家總評論數
 let monthRateArr = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 商家一年內各月份評論比重
 
-let reviewsAPI = ""; // 預測可靠度的reviewsAPI
-let reviewsFirstIndex = -1; // 預測可靠度的reviewsAPI的開始index
+let reviewsAPI = ""; // 預測可信度的reviewsAPI
+let reviewsFirstIndex = -1; // 預測可信度的reviewsAPI的開始index
 let featuresArr = []; // 評論特徵內容
-let reliabilityArr = []; // 評論可靠度
+let reliabilityArr = []; // 評論可信度
 // -------------------------------------------------------------
 let waitTargetDiv; // 等待targetDiv顯示
 let waitAddReviewsLabel; // 等待初始化label顯示
@@ -45,7 +45,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
 
   // 若目前回傳reviewsAPI的開始index為0，代表targetDiv內容刷新
   if (currentReviewsFirstIndex == 0) {
-    // 清空預測可靠度的reviewsAPI，加入目前回傳reviewsAPI
+    // 清空預測可信度的reviewsAPI，加入目前回傳reviewsAPI
     reviewsAPIsArr = [];
     reviewsAPIsArr.push(message.reviewsAPI);
     sendResponse({ farewell: "goodbye" });
@@ -100,7 +100,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
     // 取消要求初始化label顯示
     callReviewsLabelShowFlag = false;
   } else {
-    // 加入目前回傳reviewsAPI到等待預測可靠度Arr
+    // 加入目前回傳reviewsAPI到等待預測可信度Arr
     reviewsAPIsArr.push(message.reviewsAPI);
     sendResponse({ farewell: "goodbye" });
   }
@@ -110,9 +110,9 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   // 取得targetDiv
   targetDivShow();
 
-  // 若現在沒有其他reviewsAPI的可靠度 且 等待的reviewsAPI為目前回傳reviewsAPI
+  // 若現在沒有其他reviewsAPI的可信度 且 等待的reviewsAPI為目前回傳reviewsAPI
   if (!callReviewsLabelShowFlag && reviewsAPIsArr.length == 1) {
-    // 取得等待預測可靠度的評論
+    // 取得等待預測可信度的評論
     getallReviewsArr();
   }
 });
@@ -249,7 +249,7 @@ function addReviewsLabel() {
         // 將目前載入的頁面總評論數存成上次載入的頁面總評論數
         oldLoadReviewsCount = newLoadReviewsCount;
 
-        // 若已取得評論可靠度且正在等待，執行可靠度label顯示
+        // 若已取得評論可信度且正在等待，執行可信度label顯示
         if (callReviewsLabelShowFlag) {
           addReliability();
         }
@@ -394,7 +394,7 @@ function getMonthRate() {
 
 // ---------------------------------------------------------------------------------predict顯示
 
-// 取得等待預測可靠度的評論
+// 取得等待預測可信度的評論
 function getallReviewsArr() {
   // 初始化-------------------------------
   reviewsFirstIndex = -1;
@@ -403,9 +403,9 @@ function getallReviewsArr() {
   reliabilityArr = [];
   // 初始化-------------------------------
 
-  // 取得等待預測可靠度的reviewsAPI
+  // 取得等待預測可信度的reviewsAPI
   reviewsAPI = reviewsAPIsArr[0];
-  // 取得預測可靠度reviewsAPI的開始index
+  // 取得預測可信度reviewsAPI的開始index
   reviewsFirstIndex = parseInt(
     reviewsAPI.substring(
       reviewsAPI.indexOf("!2m2!") +
@@ -421,21 +421,21 @@ function getallReviewsArr() {
   console.log("reviewsFirstIndex: " + reviewsFirstIndex);
   console.log(reviewsAPIsArr);
 
-  // 若目前回傳reviewsAPI的開始index為0 且 預測可靠度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
+  // 若目前回傳reviewsAPI的開始index為0 且 預測可信度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
   if (
     !(
       currentReviewsFirstIndex == 0 &&
       currentReviewsFirstIndex != reviewsFirstIndex
     )
   ) {
-    // 每秒印currentgeting...，代表還沒取得預測可靠度的評論
+    // 每秒印currentgeting...，代表還沒取得預測可信度的評論
     console.log("currentgeting...");
     const currentgeting = setInterval(
       () => console.log("currentgeting..."),
       1000
     );
 
-    // 取得預測可靠度的評論
+    // 取得預測可信度的評論
     fetch(reviewsAPI + "&extension")
       .then(function (response) {
         return response.text();
@@ -444,7 +444,7 @@ function getallReviewsArr() {
       .catch((error) => {
         clearInterval(currentgeting);
         errorFlag = true;
-        // 可靠度labels顯示
+        // 可信度labels顯示
         addReliability();
 
         console.log("currentget error");
@@ -461,7 +461,7 @@ function getallReviewsArr() {
         clearInterval(currentgeting);
         console.log("currentget complete");
 
-        // 若目前回傳reviewsAPI的開始index為0 且 預測可靠度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
+        // 若目前回傳reviewsAPI的開始index為0 且 預測可信度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
         if (
           !(
             currentReviewsFirstIndex == 0 &&
@@ -473,7 +473,7 @@ function getallReviewsArr() {
           const text = requests_result.replace(pretext, "");
           const soup = JSON.parse(text);
 
-          // 取得預測可靠度的評論特徵內容
+          // 取得預測可信度的評論特徵內容
           if (soup[2]) {
             getFeaturesArr(soup[2]);
           }
@@ -482,19 +482,19 @@ function getallReviewsArr() {
   }
 }
 
-// 取得預測可靠度的評論特徵內容
+// 取得預測可信度的評論特徵內容
 function getFeaturesArr(allReviewsArr) {
   // 取消等待取得一年內各月份評論比重
   clearTimeout(waitMonthRateArr);
 
-  // 若目前回傳reviewsAPI的開始index為0 且 預測可靠度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
+  // 若目前回傳reviewsAPI的開始index為0 且 預測可信度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
   if (
     !(
       currentReviewsFirstIndex == 0 &&
       currentReviewsFirstIndex != reviewsFirstIndex
     )
   ) {
-    // 取得錯誤時，可靠度labels顯示
+    // 取得錯誤時，可信度labels顯示
     if (errorFlag) {
       addReliability();
     }
@@ -504,7 +504,7 @@ function getFeaturesArr(allReviewsArr) {
         // 將處理過的評論特徵內容加入featuresArr
         featuresArr.push(featuresProcessing(allReviewsArr[j]));
 
-        // 若featuresArr長度與預測可靠度的評論長度相同，代表迴圈跑完
+        // 若featuresArr長度與預測可信度的評論長度相同，代表迴圈跑完
         if (featuresArr.length == allReviewsArr.length) {
           // 預測評論內容情緒
           getContentSentiment();
@@ -517,9 +517,9 @@ function getFeaturesArr(allReviewsArr) {
   }
 }
 
-// 預測可靠度的評論資料特徵處理
+// 預測可信度的評論資料特徵處理
 function featuresProcessing(reviewsArr) {
-  // 若目前回傳reviewsAPI的開始index為0 且 預測可靠度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
+  // 若目前回傳reviewsAPI的開始index為0 且 預測可信度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
   if (
     !(
       currentReviewsFirstIndex == 0 &&
@@ -664,7 +664,7 @@ function getContentSentiment() {
         .catch((error) => {
           clearInterval(azureing);
           errorFlag = true;
-          // 可靠度labels顯示
+          // 可信度labels顯示
           addReliability();
 
           console.log("azure error");
@@ -672,7 +672,7 @@ function getContentSentiment() {
         })
         .then((response) => {
           clearInterval(azureing);
-          // 若目前回傳reviewsAPI的開始index為0 且 預測可靠度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
+          // 若目前回傳reviewsAPI的開始index為0 且 預測可信度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
           if (
             !(
               currentReviewsFirstIndex == 0 &&
@@ -697,7 +697,7 @@ function getContentSentiment() {
               }
             }
             console.log(featuresArr);
-            // 模型預測可靠度
+            // 模型預測可信度
             modelPredict();
           }
         });
@@ -705,15 +705,15 @@ function getContentSentiment() {
       clearInterval(azureing);
       console.log("azure complete");
       console.log(featuresArr);
-      // 模型預測可靠度
+      // 模型預測可信度
       modelPredict();
     }
   }
 }
 
-// 模型預測可靠度
+// 模型預測可信度
 function modelPredict() {
-  // 若目前回傳reviewsAPI的開始index為0 且 預測可靠度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
+  // 若目前回傳reviewsAPI的開始index為0 且 預測可信度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
   if (
     !(
       currentReviewsFirstIndex == 0 &&
@@ -729,7 +729,7 @@ function modelPredict() {
       // 若評論為空陣列，表示評論為1年以上
       if (featuresArr[i].length == 0) {
         data = {
-          // index設為預測可靠度的評論index
+          // index設為預測可信度的評論index
           index: reviewsFirstIndex + i,
         };
       } else {
@@ -747,12 +747,12 @@ function modelPredict() {
         };
       }
 
-      // 儲存資料格式化後的預測可靠度的評論特徵內容
+      // 儲存資料格式化後的預測可信度的評論特徵內容
       sendModelArr.push(data);
     }
     // console.log("sendModelArr: "+sendModelArr); //傳給模型的資料
 
-    // 每秒印predicting...，代表還沒取得評論可靠度回傳結果
+    // 每秒印predicting...，代表還沒取得評論可信度回傳結果
     console.log("predicting...");
     const predicting = setInterval(() => console.log("predicting..."), 1000);
 
@@ -769,7 +769,7 @@ function modelPredict() {
       .catch((error) => {
         clearInterval(predicting);
         errorFlag = true;
-        // 可靠度labels顯示
+        // 可信度labels顯示
         addReliability();
 
         console.log("predict error");
@@ -777,7 +777,7 @@ function modelPredict() {
       })
       .then((response) => {
         clearInterval(predicting);
-        // 若目前回傳reviewsAPI的開始index為0 且 預測可靠度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
+        // 若目前回傳reviewsAPI的開始index為0 且 預測可信度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
         if (
           !(
             currentReviewsFirstIndex == 0 &&
@@ -785,30 +785,30 @@ function modelPredict() {
           )
         ) {
           console.log("predict complete");
-          // 取得評論可靠度
+          // 取得評論可信度
           reliabilityArr = response;
           console.log(reliabilityArr);
-          // 可靠度label顯示
+          // 可信度label顯示
           addReliability();
         }
       });
   }
 }
 
-// 可靠度label顯示
+// 可信度label顯示
 function addReliability() {
-  // 取消等待可靠度label顯示
+  // 取消等待可信度label顯示
   const reviewsFirstIndex2 = parseInt(reliabilityArr[0].index);
-  // 若目前回傳reviewsAPI的開始index為0 且 預測可靠度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
-  // 且預測可靠度的評論都加入初始化的label
+  // 若目前回傳reviewsAPI的開始index為0 且 預測可信度reviewsAPI的開始index不為0，代表targetDiv刷新，不用處理舊資料
+  // 且預測可信度的評論都加入初始化的label
   if (
     !(
       currentReviewsFirstIndex == 0 &&
       currentReviewsFirstIndex != reviewsFirstIndex2
     )
   ) {
-    // 若目前載入的頁面總評論數是整數 且 預測可靠度reviewsAPI的開始index加上評論可靠度數量小於等於目前載入的頁面總評論數
-    // 代表要預測可靠度的評論已載入畫面
+    // 若目前載入的頁面總評論數是整數 且 預測可信度reviewsAPI的開始index加上評論可信度數量小於等於目前載入的頁面總評論數
+    // 代表要預測可信度的評論已載入畫面
     if (
       Number.isInteger(newLoadReviewsCount) &&
       reviewsFirstIndex2 + reliabilityArr.length <= newLoadReviewsCount &&
@@ -819,7 +819,7 @@ function addReliability() {
       // 完成初始化label顯示
       callReviewsLabelShowFlag = false;
 
-      // 若fetch沒錯，將預測的可靠度加入label
+      // 若fetch沒錯，將預測的可信度加入label
       if (!errorFlag) {
         for (
           reviewIndex = reviewsFirstIndex2;
@@ -840,24 +840,24 @@ function addReliability() {
 
             case 2:
               color = "#ffcc00";
-              reliability = "不可靠";
+              reliability = "不可信";
               break;
             case 5:
               color = "#ffcc00";
-              reliability = "不可靠";
+              reliability = "不可信";
               break;
 
             case 3:
               color = "#00c7be";
-              reliability = "可靠";
+              reliability = "可信";
               break;
             case 7:
               color = "#00c7be";
-              reliability = "可靠";
+              reliability = "可信";
               break;
             // case 5:
             //   color = "#34c759";
-            //   reliability = "非常可靠";
+            //   reliability = "非常可信";
             //   break;
             default:
               color = "#ff9500";
@@ -869,10 +869,10 @@ function addReliability() {
           labelDiv.style.backgroundColor = color;
 
           if (reviewIndex == reviewsFirstIndex2 + reliabilityArr.length - 1) {
-            // 將等待預測可靠度中最前面的reviewsAPI移除（也就是目前預測的reviewsAPI）
+            // 將等待預測可信度中最前面的reviewsAPI移除（也就是目前預測的reviewsAPI）
             reviewsAPIsArr.shift();
 
-            // 若等待預測可靠度的reviewsAPI不為0
+            // 若等待預測可信度的reviewsAPI不為0
             if (reviewsAPIsArr.length > 0) {
               // 取得等待的評論
               getallReviewsArr();
